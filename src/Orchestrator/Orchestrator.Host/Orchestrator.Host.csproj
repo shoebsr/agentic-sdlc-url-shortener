@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Orchestrator.Observability\Orchestrator.Observability.csproj" />
     <ProjectReference Include="..\Orchestrator.Persistence\Orchestrator.Persistence.csproj" />
     <ProjectReference Include="..\Orchestrator.Agents\Orchestrator.Agents.csproj" />
+    <ProjectReference Include="..\Orchestrator.Core\Orchestrator.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

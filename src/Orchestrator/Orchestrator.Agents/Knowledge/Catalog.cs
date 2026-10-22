@@ -23,7 +23,7 @@ public static class Catalog
     public static readonly IReadOnlyList<Capability> Capabilities =
     [
         new("shorten-api", "Create short links",
-            ["shorten", "short link", "create short", "short url", "url shortener"],
+            ["url shortener", "create short", "shorten a", "shorten url"],
             ["POST /api/v1/links returns 201 with code, short URL and an owner management token",
              "Invalid, non-http(s), credential-bearing or private-network URLs are rejected with 400 problem details",
              "Generated codes are 7-char base62, collision-retried with a bounded attempt count"],
@@ -106,9 +106,9 @@ public static class Catalog
             ["ShortLink", "LinkRoute", "ShortLinkService", "CreateShortLinkCommand", "CreateLinkRequest", "ShortLinkView", "ShortenerDbContext", "DomainErrors"],
             ["POST /api/v1/links accepts optional maxClicks", "GET /api/v1/links/{code} returns maxClicks", "GET /{code} returns 410 link.exhausted when the cap is reached"],
             ["ShortLinks.MaxClicks nullable int column (additive migration)"],
-            [new("Enforce the cap on the redirect path from the cached route plus the batched counter",
-                "Keeps the hot path free of synchronous writes; the cap is eventually consistent within one flush interval and one cache TTL",
-                ["Atomic decrement in the database on every redirect (strict, but a write per click)", "Redis INCR per click (strict, adds a Redis dependency to every redirect)"]),
+            [new("Capped links bypass the route cache and are checked against the batched click counter",
+                "Uncapped traffic keeps the cached hot path; capped links (rare) read the current count, so overshoot is bounded by one analytics flush interval",
+                ["Atomic decrement in the database on every redirect (strict, but a write per click)", "Redis INCR per click (strict, adds a Redis dependency to every redirect)", "Cache capped routes too (overshoot bounded only by cache TTL)"]),
              new("Nullable column instead of a sentinel value", "Additive, backward-compatible migration; no backfill required", ["Default of int.MaxValue"])],
             [new("T-cap-domain", "MaxClicks on ShortLink with validation and exhaustion rule", "Domain", [], "Unit tests"),
              new("T-cap-app", "Thread maxClicks through command, route and view; enforce on resolve", "Application", ["T-cap-domain"], "Service unit tests"),
@@ -147,8 +147,21 @@ public static class Catalog
     public static readonly VagueTerm ExistingDataQuestion = new(
         "existing", "data-scope", "Should the new rule apply retroactively to existing links?", "No - apply to new links only; existing links are reviewed separately");
 
+    public static readonly IReadOnlySet<string> ExistingCapabilities = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "shorten-api", "redirect", "analytics", "reliability", "custom-alias", "expiry",
+    };
+
     public static IReadOnlyList<Capability> Detect(string text) =>
         [.. Capabilities.Where(c => c.Keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase)))];
+
+    public static IReadOnlyList<Capability> Detect(string text, bool brownfield)
+    {
+        var detected = Detect(text);
+        return brownfield && detected.Any(c => !ExistingCapabilities.Contains(c.Id))
+            ? [.. detected.Where(c => !ExistingCapabilities.Contains(c.Id))]
+            : detected;
+    }
 
     public static Capability? Find(string id) => Capabilities.FirstOrDefault(c => c.Id == id);
 }

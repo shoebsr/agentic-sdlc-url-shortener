@@ -1,0 +1,14 @@
+id: brownfield-click-cap
+title: Brownfield - maximum-click limit
+kind: Brownfield
+initiatedBy: product-owner
+description: >
+  Enhance the existing service. Demonstrates codebase impact analysis across layers, a schema change
+  routed through change control (protected path), and a real build and test run of the modified code.
+requirement: >
+  Add an optional maximum-click limit to short links. Once a link reaches its limit it must stop
+  redirecting and return 410 Gone. Owners can see the limit in the link details. Existing links without
+  a limit must keep working exactly as before.
+settings:
+  baseline: repository
+  patch.click-cap: scenarios/patches/click-cap.patch

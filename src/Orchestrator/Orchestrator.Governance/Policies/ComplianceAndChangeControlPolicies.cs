@@ -108,15 +108,21 @@ public sealed partial class DestructiveSchemaPolicy : IPolicy
             .Where(f => f.Path.Contains("Migrations", StringComparison.OrdinalIgnoreCase) && !f.Path.EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (migrations.Any(f => DropDatabase().IsMatch(f.AddedContent)))
+        if (migrations.Any(f => DropDatabase().IsMatch(ForwardPath(f.AddedContent))))
         {
             return new PolicyVerdict(Id, PolicyEffect.Deny, "Migration drops a database or truncates data", RiskLevel.Critical);
         }
 
-        var destructive = migrations.Where(f => DropObject().IsMatch(f.AddedContent)).Select(f => f.Path).ToList();
+        var destructive = migrations.Where(f => DropObject().IsMatch(ForwardPath(f.AddedContent))).Select(f => f.Path).ToList();
         return destructive.Count == 0
             ? PolicyVerdict.Allow(Id)
             : new PolicyVerdict(Id, PolicyEffect.RequireApproval, $"Migration drops schema objects (data loss risk): {string.Join(", ", destructive)}", RiskLevel.Critical);
+    }
+
+    private static string ForwardPath(string migration)
+    {
+        var down = migration.IndexOf("void Down(", StringComparison.Ordinal);
+        return down < 0 ? migration : migration[..down];
     }
 
     [GeneratedRegex(@"(DROP\s+DATABASE)|(TRUNCATE\s+TABLE)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]

@@ -1,0 +1,14 @@
+id: brownfield-policy-violation
+title: Brownfield - change blocked by policy
+kind: Brownfield
+initiatedBy: product-owner
+description: >
+  Same enhancement as the brownfield scenario, but the implementation also commits a cloud access key.
+  The secret-leak policy denies the change and the orchestrator rolls the workspace back to its checkpoint.
+requirement: >
+  Add an optional maximum-click limit to short links. Once a link reaches its limit it must stop
+  redirecting and return 410 Gone. Existing links without a limit must keep working exactly as before.
+settings:
+  baseline: repository
+  patch.click-cap: scenarios/patches/click-cap.patch
+  injectSecret: "true"

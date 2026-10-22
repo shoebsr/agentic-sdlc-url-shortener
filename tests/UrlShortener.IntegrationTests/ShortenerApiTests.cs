@@ -166,7 +166,7 @@ public sealed class ShortenerApiTests(ShortenerApiFactory factory) : IClassFixtu
         {
             var response = await SendAsync(HttpMethod.Get, $"/api/v1/links/{link.Link.Code}/analytics?days=7", link.ManagementToken);
             var analytics = (await response.Content.ReadFromJsonAsync<LinkAnalyticsView>())!;
-            if (analytics.WindowClicks >= expectedClicks || DateTime.UtcNow > deadline)
+            if ((analytics.WindowClicks >= expectedClicks && analytics.TotalClicks >= expectedClicks) || DateTime.UtcNow > deadline)
             {
                 return analytics;
             }

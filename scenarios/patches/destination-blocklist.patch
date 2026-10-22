@@ -1,0 +1,154 @@
+diff --git a/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs b/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
+index 36ee4eb..84a9b65 100644
+--- a/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
++++ b/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
+@@ -36,6 +36,12 @@ public sealed partial class ShortLinkService(
+             return DomainErrors.Url.SelfReference;
+         }
+ 
++        if (_options.IsBlocked(destination.Value.Value.IdnHost))
++        {
++            LogBlockedDestination(logger, destination.Value.Value.IdnHost);
++            return DomainErrors.Url.BlockedDomain;
++        }
++
+         var now = clock.GetUtcNow();
+         if (command.ExpiresAt > now.AddDays(_options.MaxExpiryDays))
+         {
+@@ -224,6 +230,9 @@ public sealed partial class ShortLinkService(
+     [LoggerMessage(Level = LogLevel.Warning, Message = "Generated short code collided on attempt {Attempt}")]
+     private static partial void LogCodeCollision(ILogger logger, int attempt);
+ 
++    [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected short link to blocked domain {Host}")]
++    private static partial void LogBlockedDestination(ILogger logger, string host);
++
+     [LoggerMessage(Level = LogLevel.Warning, Message = "Click for {Code} dropped: analytics pipeline is saturated")]
+     private static partial void LogClickDropped(ILogger logger, string code);
+ }
+diff --git a/src/UrlShortener/UrlShortener.Application/ShortenerOptions.cs b/src/UrlShortener/UrlShortener.Application/ShortenerOptions.cs
+index 0a339c2..78baba9 100644
+--- a/src/UrlShortener/UrlShortener.Application/ShortenerOptions.cs
++++ b/src/UrlShortener/UrlShortener.Application/ShortenerOptions.cs
+@@ -21,4 +21,14 @@ public sealed class ShortenerOptions
+ 
+     [Range(1, 50)]
+     public int TopReferrers { get; set; } = 10;
++
++    public IList<string> BlockedDomains { get; } = [];
++
++    public bool IsBlocked(string host)
++    {
++        ArgumentNullException.ThrowIfNull(host);
++        return BlockedDomains.Any(domain =>
++            host.Equals(domain, StringComparison.OrdinalIgnoreCase)
++            || host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase));
++    }
+ }
+diff --git a/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs b/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
+index 7fbf5f3..656412c 100644
+--- a/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
++++ b/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
+@@ -30,6 +30,8 @@ public static class DomainErrors
+             "url.internal_host", "URLs pointing to private or internal hosts are not allowed.");
+         public static readonly Error SelfReference = Error.Validation(
+             "url.self_reference", "URLs pointing back to this shortener are not allowed.");
++        public static readonly Error BlockedDomain = Error.Validation(
++            "url.blocked_domain", "The destination domain is blocked by policy.");
+     }
+ 
+     public static class Link
+diff --git a/tests/UrlShortener.IntegrationTests/BlockedDomainTests.cs b/tests/UrlShortener.IntegrationTests/BlockedDomainTests.cs
+new file mode 100644
+index 0000000..4be6dbf
+--- /dev/null
++++ b/tests/UrlShortener.IntegrationTests/BlockedDomainTests.cs
+@@ -0,0 +1,37 @@
++using System.Net;
++using System.Net.Http.Json;
++using System.Text.Json;
++using Microsoft.AspNetCore.Hosting;
++using UrlShortener.Presentation;
++
++namespace UrlShortener.IntegrationTests;
++
++public sealed class BlockedDomainTests : IDisposable
++{
++    private readonly BlocklistFactory _factory = new();
++
++    [Fact]
++    public async Task Links_to_blocked_domains_are_rejected_with_a_stable_error_code()
++    {
++        var client = _factory.CreateClient();
++
++        var blocked = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest("https://login.malware.example/reset", null, null));
++        var allowed = await client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest("https://www.schwab.com", null, null));
++
++        Assert.Equal(HttpStatusCode.BadRequest, blocked.StatusCode);
++        using var problem = JsonDocument.Parse(await blocked.Content.ReadAsStringAsync());
++        Assert.Equal("url.blocked_domain", problem.RootElement.GetProperty("code").GetString());
++        Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
++    }
++
++    public void Dispose() => _factory.Dispose();
++
++    private sealed class BlocklistFactory : ShortenerApiFactory
++    {
++        protected override void ConfigureWebHost(IWebHostBuilder builder)
++        {
++            base.ConfigureWebHost(builder);
++            builder.UseSetting("Shortener:BlockedDomains:0", "malware.example");
++        }
++    }
++}
+diff --git a/tests/UrlShortener.IntegrationTests/ShortenerApiFactory.cs b/tests/UrlShortener.IntegrationTests/ShortenerApiFactory.cs
+index e83606c..65b389e 100644
+--- a/tests/UrlShortener.IntegrationTests/ShortenerApiFactory.cs
++++ b/tests/UrlShortener.IntegrationTests/ShortenerApiFactory.cs
+@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
+ 
+ namespace UrlShortener.IntegrationTests;
+ 
+-public sealed class ShortenerApiFactory : WebApplicationFactory<Program>
++public class ShortenerApiFactory : WebApplicationFactory<Program>
+ {
+     private readonly string _connectionString = $"Data Source=shortener-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+     private readonly SqliteConnection _keepAlive;
+diff --git a/tests/UrlShortener.UnitTests/Application/BlockedDomainTests.cs b/tests/UrlShortener.UnitTests/Application/BlockedDomainTests.cs
+new file mode 100644
+index 0000000..e059beb
+--- /dev/null
++++ b/tests/UrlShortener.UnitTests/Application/BlockedDomainTests.cs
+@@ -0,0 +1,33 @@
++using UrlShortener.Application;
++
++namespace UrlShortener.UnitTests.Application;
++
++public class BlockedDomainTests
++{
++    private static ShortenerOptions Options()
++    {
++        var options = new ShortenerOptions();
++        options.BlockedDomains.Add("malware.example");
++        options.BlockedDomains.Add("phish.test");
++        return options;
++    }
++
++    [Theory]
++    [InlineData("malware.example")]
++    [InlineData("MALWARE.example")]
++    [InlineData("cdn.malware.example")]
++    [InlineData("deep.sub.phish.test")]
++    public void Blocked_domains_and_their_subdomains_are_rejected(string host)
++    {
++        Assert.True(Options().IsBlocked(host));
++    }
++
++    [Theory]
++    [InlineData("example.com")]
++    [InlineData("notmalware.example")]
++    [InlineData("malware.example.com")]
++    public void Lookalike_and_unrelated_domains_are_allowed(string host)
++    {
++        Assert.False(Options().IsBlocked(host));
++    }
++}

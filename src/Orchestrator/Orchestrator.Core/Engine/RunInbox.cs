@@ -36,7 +36,7 @@ public sealed class RunCommand(string name, Func<WorkflowRun, Task<CommandResult
 
 public sealed class RunInbox
 {
-    private readonly Channel<RunCommand> _commands = Channel.CreateUnbounded<RunCommand>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly Channel<RunCommand> _commands = Channel.CreateUnbounded<RunCommand>();
 
     public bool HasPending => _commands.Reader.Count > 0;
 

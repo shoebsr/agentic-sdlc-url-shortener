@@ -599,7 +599,8 @@ public sealed partial class WorkflowEngine(
         {
             var node = graph[id];
             var state = run.StateOf(id);
-            if (!node.Compensable || state.Status is not (NodeStatus.Succeeded or NodeStatus.AwaitingApproval))
+            var leftSideEffects = state.Status == NodeStatus.Failed && state.Outputs.Count > 0;
+            if (!node.Compensable || !(leftSideEffects || state.Status is NodeStatus.Succeeded or NodeStatus.AwaitingApproval))
             {
                 continue;
             }

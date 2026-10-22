@@ -1,0 +1,15 @@
+id: greenfield-url-shortener
+title: Greenfield - URL shortener service
+kind: Greenfield
+initiatedBy: product-owner
+description: >
+  Build the service from an empty solution. Demonstrates parallel verification branches, a retried
+  transient test failure, a fallback from the primary requirements agent, and three governed approvals.
+requirement: >
+  Build a URL shortener service with APIs to create short links, optionally with a custom alias and
+  an expiry, redirect visitors to the destination, and report click analytics per link. The service must
+  be reliable under load, with rate limiting and health checks, and must not store visitor IP addresses.
+settings:
+  baseline: empty
+  recipe: template
+  faults: "requirements:primary;integration-tests:transient:1"

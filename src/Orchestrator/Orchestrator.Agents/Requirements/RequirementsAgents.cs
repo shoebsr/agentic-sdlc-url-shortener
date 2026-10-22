@@ -21,7 +21,7 @@ public static partial class RequirementsAnalysis
     public static Specification Analyze(string requirement, ScenarioKind kind, string source)
     {
         ArgumentNullException.ThrowIfNull(requirement);
-        var capabilities = Catalog.Detect(requirement);
+        var capabilities = Catalog.Detect(requirement, kind != ScenarioKind.Greenfield);
         var ambiguities = new List<Ambiguity>();
 
         foreach (var vague in Catalog.VagueTerms)
@@ -200,7 +200,7 @@ public sealed class ClarificationBrokerAgent : IAgent
             a => $"{a.Id} {a.Term}",
             a => answers.GetValueOrDefault(a.Id, $"{a.SuggestedDefault} (default accepted)"));
         var combined = context.Requirement + " " + string.Join(" ", resolutions.Values);
-        var capabilities = Catalog.Detect(combined);
+        var capabilities = Catalog.Detect(combined, context.Run.Kind != ScenarioKind.Greenfield);
 
         var nonFunctional = original.NonFunctional.ToList();
         foreach (var ambiguity in original.Ambiguities.Where(a => a.Category is "performance" or "capacity" or "reliability"))

@@ -485,3 +485,5 @@ $RECYCLE.BIN/
 deploy/.env
 runs/
 
+
+.data/

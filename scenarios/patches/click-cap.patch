@@ -1,0 +1,548 @@
+diff --git a/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs b/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs
+index 9adfc55..bd6243a 100644
+--- a/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs
++++ b/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs
+@@ -3,12 +3,21 @@ using UrlShortener.Domain;
+ 
+ namespace UrlShortener.Application.Abstractions;
+ 
+-public sealed record LinkRoute(Guid LinkId, string Code, Uri Destination, DateTimeOffset? ExpiresAt, DateTimeOffset? DisabledAt)
++public sealed record LinkRoute(
++    Guid LinkId,
++    string Code,
++    Uri Destination,
++    DateTimeOffset? ExpiresAt,
++    DateTimeOffset? DisabledAt,
++    int? MaxClicks = null,
++    long ClickCount = 0)
+ {
++    public bool IsCapped => MaxClicks is not null;
++
+     public static LinkRoute From(ShortLink link)
+     {
+         ArgumentNullException.ThrowIfNull(link);
+-        return new LinkRoute(link.Id, link.Code.Value, link.Destination.Value, link.ExpiresAt, link.DisabledAt);
++        return new LinkRoute(link.Id, link.Code.Value, link.Destination.Value, link.ExpiresAt, link.DisabledAt, link.MaxClicks, link.ClickCount);
+     }
+ 
+     public Result EnsureResolvable(DateTimeOffset now)
+@@ -18,6 +27,11 @@ public sealed record LinkRoute(Guid LinkId, string Code, Uri Destination, DateTi
+             return DomainErrors.Link.Disabled;
+         }
+ 
++        if (MaxClicks is not null && ClickCount >= MaxClicks)
++        {
++            return DomainErrors.Link.Exhausted;
++        }
++
+         return ExpiresAt is not null && ExpiresAt <= now ? DomainErrors.Link.Expired : Result.Success();
+     }
+ }
+diff --git a/src/UrlShortener/UrlShortener.Application/Links/Contracts.cs b/src/UrlShortener/UrlShortener.Application/Links/Contracts.cs
+index d601f89..6ff2998 100644
+--- a/src/UrlShortener/UrlShortener.Application/Links/Contracts.cs
++++ b/src/UrlShortener/UrlShortener.Application/Links/Contracts.cs
+@@ -1,6 +1,6 @@
+ namespace UrlShortener.Application.Links;
+ 
+-public sealed record CreateShortLinkCommand(string? Url, string? CustomAlias, DateTimeOffset? ExpiresAt);
++public sealed record CreateShortLinkCommand(string? Url, string? CustomAlias, DateTimeOffset? ExpiresAt, int? MaxClicks = null);
+ 
+ public sealed record ShortLinkView(
+     string Code,
+@@ -9,7 +9,8 @@ public sealed record ShortLinkView(
+     DateTimeOffset CreatedAt,
+     DateTimeOffset? ExpiresAt,
+     bool IsActive,
+-    long ClickCount);
++    long ClickCount,
++    int? MaxClicks = null);
+ 
+ public sealed record CreatedShortLink(ShortLinkView Link, string ManagementToken);
+ 
+diff --git a/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs b/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
+index 36ee4eb..a89212d 100644
+--- a/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
++++ b/src/UrlShortener/UrlShortener.Application/Links/ShortLinkService.cs
+@@ -46,8 +46,8 @@ public sealed partial class ShortLinkService(
+         var isCustom = !string.IsNullOrWhiteSpace(command.CustomAlias);
+ 
+         return isCustom
+-            ? await CreateWithAliasAsync(command.CustomAlias!, destination.Value, token, now, command.ExpiresAt, cancellationToken)
+-            : await CreateWithGeneratedCodeAsync(destination.Value, token, now, command.ExpiresAt, cancellationToken);
++            ? await CreateWithAliasAsync(command.CustomAlias!, destination.Value, token, now, command.ExpiresAt, command.MaxClicks, cancellationToken)
++            : await CreateWithGeneratedCodeAsync(destination.Value, token, now, command.ExpiresAt, command.MaxClicks, cancellationToken);
+     }
+ 
+     public async Task<Result<Uri>> ResolveAsync(string? code, ClickContext context, CancellationToken cancellationToken)
+@@ -62,6 +62,11 @@ public sealed partial class ShortLinkService(
+ 
+         var route = await cache.GetOrLoadAsync(
+             shortCode.Value, ct => repository.FindRouteAsync(shortCode.Value, ct), cancellationToken);
++        if (route is { IsCapped: true })
++        {
++            route = await repository.FindRouteAsync(shortCode.Value, cancellationToken);
++        }
++
+         if (route is null)
+         {
+             return DomainErrors.Link.NotFound;
+@@ -140,7 +145,7 @@ public sealed partial class ShortLinkService(
+     }
+ 
+     private async Task<Result<CreatedShortLink>> CreateWithAliasAsync(
+-        string alias, DestinationUrl destination, IssuedToken token, DateTimeOffset now, DateTimeOffset? expiresAt, CancellationToken cancellationToken)
++        string alias, DestinationUrl destination, IssuedToken token, DateTimeOffset now, DateTimeOffset? expiresAt, int? maxClicks, CancellationToken cancellationToken)
+     {
+         var code = ShortCode.Create(alias);
+         if (!code.IsSuccess)
+@@ -148,7 +153,7 @@ public sealed partial class ShortLinkService(
+             return code.Error;
+         }
+ 
+-        var link = ShortLink.Create(code.Value, destination, token.Hash, now, expiresAt, isCustomAlias: true);
++        var link = ShortLink.Create(code.Value, destination, token.Hash, now, expiresAt, isCustomAlias: true, maxClicks);
+         if (!link.IsSuccess)
+         {
+             return link.Error;
+@@ -164,11 +169,11 @@ public sealed partial class ShortLinkService(
+     }
+ 
+     private async Task<Result<CreatedShortLink>> CreateWithGeneratedCodeAsync(
+-        DestinationUrl destination, IssuedToken token, DateTimeOffset now, DateTimeOffset? expiresAt, CancellationToken cancellationToken)
++        DestinationUrl destination, IssuedToken token, DateTimeOffset now, DateTimeOffset? expiresAt, int? maxClicks, CancellationToken cancellationToken)
+     {
+         for (var attempt = 1; attempt <= _options.MaxCodeAllocationAttempts; attempt++)
+         {
+-            var link = ShortLink.Create(codeGenerator.Next(), destination, token.Hash, now, expiresAt, isCustomAlias: false);
++            var link = ShortLink.Create(codeGenerator.Next(), destination, token.Hash, now, expiresAt, isCustomAlias: false, maxClicks);
+             if (!link.IsSuccess)
+             {
+                 return link.Error;
+@@ -210,7 +215,8 @@ public sealed partial class ShortLinkService(
+         link.CreatedAt,
+         link.ExpiresAt,
+         link.IsActive(clock.GetUtcNow()),
+-        link.ClickCount);
++        link.ClickCount,
++        link.MaxClicks);
+ 
+     private static string? ExtractHost(string? referrer) =>
+         Uri.TryCreate(referrer, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri.IdnHost : null;
+diff --git a/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs b/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
+index 7fbf5f3..f91579f 100644
+--- a/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
++++ b/src/UrlShortener/UrlShortener.Domain/DomainErrors.cs
+@@ -40,6 +40,9 @@ public static class DomainErrors
+         public static readonly Error ExpiryInPast = Error.Validation("link.expiry_past", "Expiry must be in the future.");
+         public static readonly Error ExpiryTooFar = Error.Validation("link.expiry_too_far", "Expiry exceeds the allowed maximum.");
+         public static readonly Error Unauthorized = Error.Forbidden("link.forbidden", "A valid management token is required.");
++        public static readonly Error Exhausted = Error.Gone("link.exhausted", "Short link has reached its maximum number of clicks.");
++        public static readonly Error MaxClicksRange = Error.Validation(
++            "link.max_clicks_range", $"maxClicks must be between 1 and {ShortLink.MaxClicksLimit}.");
+     }
+ 
+     public static class Analytics
+diff --git a/src/UrlShortener/UrlShortener.Domain/ShortLink.cs b/src/UrlShortener/UrlShortener.Domain/ShortLink.cs
+index 30bd4b1..eeacbc9 100644
+--- a/src/UrlShortener/UrlShortener.Domain/ShortLink.cs
++++ b/src/UrlShortener/UrlShortener.Domain/ShortLink.cs
+@@ -17,7 +17,8 @@ public sealed class ShortLink
+         string managementTokenHash,
+         DateTimeOffset createdAt,
+         DateTimeOffset? expiresAt,
+-        bool isCustomAlias)
++        bool isCustomAlias,
++        int? maxClicks)
+     {
+         Id = Guid.CreateVersion7(createdAt);
+         Code = code;
+@@ -26,8 +27,11 @@ public sealed class ShortLink
+         CreatedAt = createdAt;
+         ExpiresAt = expiresAt;
+         IsCustomAlias = isCustomAlias;
++        MaxClicks = maxClicks;
+     }
+ 
++    public const int MaxClicksLimit = 1_000_000;
++
+     public Guid Id { get; private set; }
+ 
+     public ShortCode Code { get; private set; }
+@@ -46,15 +50,20 @@ public sealed class ShortLink
+ 
+     public long ClickCount { get; private set; }
+ 
++    public int? MaxClicks { get; private set; }
++
+     public bool IsDisabled => DisabledAt is not null;
+ 
++    public bool IsExhausted => MaxClicks is not null && ClickCount >= MaxClicks;
++
+     public static Result<ShortLink> Create(
+         ShortCode code,
+         DestinationUrl destination,
+         string managementTokenHash,
+         DateTimeOffset now,
+         DateTimeOffset? expiresAt,
+-        bool isCustomAlias)
++        bool isCustomAlias,
++        int? maxClicks = null)
+     {
+         ArgumentNullException.ThrowIfNull(code);
+         ArgumentNullException.ThrowIfNull(destination);
+@@ -65,12 +74,17 @@ public sealed class ShortLink
+             return DomainErrors.Link.ExpiryInPast;
+         }
+ 
+-        return new ShortLink(code, destination, managementTokenHash, now, expiresAt, isCustomAlias);
++        if (maxClicks is < 1 or > MaxClicksLimit)
++        {
++            return DomainErrors.Link.MaxClicksRange;
++        }
++
++        return new ShortLink(code, destination, managementTokenHash, now, expiresAt, isCustomAlias, maxClicks);
+     }
+ 
+     public bool IsExpired(DateTimeOffset now) => ExpiresAt is not null && ExpiresAt <= now;
+ 
+-    public bool IsActive(DateTimeOffset now) => !IsDisabled && !IsExpired(now);
++    public bool IsActive(DateTimeOffset now) => !IsDisabled && !IsExpired(now) && !IsExhausted;
+ 
+     public Result EnsureResolvable(DateTimeOffset now)
+     {
+@@ -79,6 +93,11 @@ public sealed class ShortLink
+             return DomainErrors.Link.Disabled;
+         }
+ 
++        if (IsExhausted)
++        {
++            return DomainErrors.Link.Exhausted;
++        }
++
+         return IsExpired(now) ? DomainErrors.Link.Expired : Result.Success();
+     }
+ 
+diff --git a/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.Designer.cs b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.Designer.cs
+new file mode 100644
+index 0000000..115eb2a
+--- /dev/null
++++ b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.Designer.cs
+@@ -0,0 +1,122 @@
++﻿using System;
++using Microsoft.EntityFrameworkCore;
++using Microsoft.EntityFrameworkCore.Infrastructure;
++using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Migrations;
++using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
++using UrlShortener.Infrastructure.Persistence;
++
++#nullable disable
++
++namespace UrlShortener.Infrastructure.Persistence.Migrations
++{
++    [DbContext(typeof(ShortenerDbContext))]
++    [Migration("20261022191337_AddMaxClicks")]
++    partial class AddMaxClicks
++    {
++        protected override void BuildTargetModel(ModelBuilder modelBuilder)
++        {
++#pragma warning disable 612, 618
++            modelBuilder
++                .HasAnnotation("ProductVersion", "10.0.13")
++                .HasAnnotation("Relational:MaxIdentifierLength", 128);
++
++            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
++
++            modelBuilder.Entity("UrlShortener.Domain.ClickEvent", b =>
++                {
++                    b.Property<Guid>("Id")
++                        .HasColumnType("uniqueidentifier");
++
++                    b.Property<DateTimeOffset>("OccurredAt")
++                        .HasColumnType("datetimeoffset");
++
++                    b.Property<DateOnly>("OccurredOn")
++                        .HasColumnType("date");
++
++                    b.Property<string>("ReferrerHost")
++                        .HasMaxLength(255)
++                        .HasColumnType("nvarchar(255)");
++
++                    b.Property<Guid>("ShortLinkId")
++                        .HasColumnType("uniqueidentifier");
++
++                    b.Property<string>("UserAgent")
++                        .HasMaxLength(512)
++                        .HasColumnType("nvarchar(512)");
++
++                    b.Property<string>("VisitorHash")
++                        .HasMaxLength(64)
++                        .IsUnicode(false)
++                        .HasColumnType("varchar(64)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("ShortLinkId", "OccurredOn");
++
++                    b.ToTable("ClickEvents", (string)null);
++                });
++
++            modelBuilder.Entity("UrlShortener.Domain.ShortLink", b =>
++                {
++                    b.Property<Guid>("Id")
++                        .HasColumnType("uniqueidentifier");
++
++                    b.Property<long>("ClickCount")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint")
++                        .HasDefaultValue(0L);
++
++                    b.Property<string>("Code")
++                        .IsRequired()
++                        .HasMaxLength(32)
++                        .IsUnicode(false)
++                        .HasColumnType("varchar(32)")
++                        .UseCollation("Latin1_General_100_BIN2");
++
++                    b.Property<DateTimeOffset>("CreatedAt")
++                        .HasColumnType("datetimeoffset");
++
++                    b.Property<string>("Destination")
++                        .IsRequired()
++                        .HasMaxLength(2048)
++                        .HasColumnType("nvarchar(2048)");
++
++                    b.Property<DateTimeOffset?>("DisabledAt")
++                        .HasColumnType("datetimeoffset");
++
++                    b.Property<DateTimeOffset?>("ExpiresAt")
++                        .HasColumnType("datetimeoffset");
++
++                    b.Property<bool>("IsCustomAlias")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("ManagementTokenHash")
++                        .IsRequired()
++                        .HasMaxLength(64)
++                        .IsUnicode(false)
++                        .HasColumnType("varchar(64)");
++
++                    b.Property<int?>("MaxClicks")
++                        .HasColumnType("int");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("Code")
++                        .IsUnique();
++
++                    b.ToTable("ShortLinks", (string)null);
++                });
++
++            modelBuilder.Entity("UrlShortener.Domain.ClickEvent", b =>
++                {
++                    b.HasOne("UrlShortener.Domain.ShortLink", null)
++                        .WithMany()
++                        .HasForeignKey("ShortLinkId")
++                        .OnDelete(DeleteBehavior.Cascade)
++                        .IsRequired();
++                });
++#pragma warning restore 612, 618
++        }
++    }
++}
+diff --git a/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.cs b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.cs
+new file mode 100644
+index 0000000..23e0013
+--- /dev/null
++++ b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/20261022191337_AddMaxClicks.cs
+@@ -0,0 +1,25 @@
++﻿using Microsoft.EntityFrameworkCore.Migrations;
++
++#nullable disable
++
++namespace UrlShortener.Infrastructure.Persistence.Migrations
++{
++    public partial class AddMaxClicks : Migration
++    {
++        protected override void Up(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.AddColumn<int>(
++                name: "MaxClicks",
++                table: "ShortLinks",
++                type: "int",
++                nullable: true);
++        }
++
++        protected override void Down(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.DropColumn(
++                name: "MaxClicks",
++                table: "ShortLinks");
++        }
++    }
++}
+diff --git a/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/ShortenerDbContextModelSnapshot.cs b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/ShortenerDbContextModelSnapshot.cs
+index 2ac1dc6..e80f2f5 100644
+--- a/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/ShortenerDbContextModelSnapshot.cs
++++ b/src/UrlShortener/UrlShortener.Infrastructure/Persistence/Migrations/ShortenerDbContextModelSnapshot.cs
+@@ -95,6 +95,9 @@ namespace UrlShortener.Infrastructure.Persistence.Migrations
+                         .IsUnicode(false)
+                         .HasColumnType("varchar(64)");
+ 
++                    b.Property<int?>("MaxClicks")
++                        .HasColumnType("int");
++
+                     b.HasKey("Id");
+ 
+                     b.HasIndex("Code")
+diff --git a/src/UrlShortener/UrlShortener.Presentation/LinkEndpoints.cs b/src/UrlShortener/UrlShortener.Presentation/LinkEndpoints.cs
+index 774ce09..e281784 100644
+--- a/src/UrlShortener/UrlShortener.Presentation/LinkEndpoints.cs
++++ b/src/UrlShortener/UrlShortener.Presentation/LinkEndpoints.cs
+@@ -50,7 +50,7 @@ public static class LinkEndpoints
+         CreateLinkRequest request, ShortLinkService service, CancellationToken cancellationToken)
+     {
+         var result = await service.CreateAsync(
+-            new CreateShortLinkCommand(request.Url, request.CustomAlias, request.ExpiresAt), cancellationToken);
++            new CreateShortLinkCommand(request.Url, request.CustomAlias, request.ExpiresAt, request.MaxClicks), cancellationToken);
+ 
+         return result.IsSuccess
+             ? TypedResults.Created($"/api/v1/links/{result.Value.Link.Code}", result.Value)
+@@ -89,4 +89,4 @@ public static class LinkEndpoints
+     }
+ }
+ 
+-public sealed record CreateLinkRequest(string? Url, string? CustomAlias, DateTimeOffset? ExpiresAt);
++public sealed record CreateLinkRequest(string? Url, string? CustomAlias, DateTimeOffset? ExpiresAt, int? MaxClicks = null);
+diff --git a/tests/UrlShortener.IntegrationTests/ClickCapTests.cs b/tests/UrlShortener.IntegrationTests/ClickCapTests.cs
+new file mode 100644
+index 0000000..5d8aea3
+--- /dev/null
++++ b/tests/UrlShortener.IntegrationTests/ClickCapTests.cs
+@@ -0,0 +1,68 @@
++using System.Net;
++using System.Net.Http.Json;
++using Microsoft.AspNetCore.Mvc.Testing;
++using UrlShortener.Application.Links;
++using UrlShortener.Presentation;
++
++namespace UrlShortener.IntegrationTests;
++
++public sealed class ClickCapTests(ShortenerApiFactory factory) : IClassFixture<ShortenerApiFactory>
++{
++    private readonly HttpClient _client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
++
++    [Fact]
++    public async Task Capped_link_stops_redirecting_once_the_limit_is_reached()
++    {
++        var create = await _client.PostAsJsonAsync("/api/v1/links",
++            new CreateLinkRequest("https://example.com/once", $"cap-{Guid.NewGuid():N}"[..12], null, MaxClicks: 2));
++        var created = (await create.Content.ReadFromJsonAsync<CreatedShortLink>())!;
++
++        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
++        Assert.Equal(2, created.Link.MaxClicks);
++
++        Assert.Equal(HttpStatusCode.Found, (await _client.GetAsync(new Uri(created.Link.Code, UriKind.Relative))).StatusCode);
++        Assert.Equal(HttpStatusCode.Found, (await _client.GetAsync(new Uri(created.Link.Code, UriKind.Relative))).StatusCode);
++
++        var deadline = DateTime.UtcNow.AddSeconds(10);
++        HttpStatusCode status;
++        do
++        {
++            await Task.Delay(100);
++            status = (await _client.GetAsync(new Uri(created.Link.Code, UriKind.Relative))).StatusCode;
++        }
++        while (status == HttpStatusCode.Found && DateTime.UtcNow < deadline);
++
++        Assert.Equal(HttpStatusCode.Gone, status);
++    }
++
++    [Fact]
++    public async Task Invalid_cap_is_rejected()
++    {
++        var response = await _client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest("https://example.com", null, null, MaxClicks: 0));
++
++        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
++    }
++
++    [Fact]
++    public async Task Uncapped_links_are_unchanged()
++    {
++        var response = await _client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest("https://example.com/free", null, null));
++        var created = (await response.Content.ReadFromJsonAsync<CreatedShortLink>())!;
++
++        Assert.Null(created.Link.MaxClicks);
++        Assert.Equal(HttpStatusCode.Found, (await _client.GetAsync(new Uri(created.Link.Code, UriKind.Relative))).StatusCode);
++    }
++
++    [Fact]
++    public async Task Owner_sees_the_cap_in_link_details()
++    {
++        var response = await _client.PostAsJsonAsync("/api/v1/links", new CreateLinkRequest("https://example.com/d", null, null, MaxClicks: 5));
++        var created = (await response.Content.ReadFromJsonAsync<CreatedShortLink>())!;
++        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/links/{created.Link.Code}");
++        request.Headers.Add(LinkEndpoints.ManagementTokenHeader, created.ManagementToken);
++
++        var details = await (await _client.SendAsync(request)).Content.ReadFromJsonAsync<ShortLinkView>();
++
++        Assert.Equal(5, details!.MaxClicks);
++    }
++}
+diff --git a/tests/UrlShortener.UnitTests/Domain/ClickCapTests.cs b/tests/UrlShortener.UnitTests/Domain/ClickCapTests.cs
+new file mode 100644
+index 0000000..66fa9f4
+--- /dev/null
++++ b/tests/UrlShortener.UnitTests/Domain/ClickCapTests.cs
+@@ -0,0 +1,51 @@
++using UrlShortener.Application.Abstractions;
++using UrlShortener.Domain;
++
++namespace UrlShortener.UnitTests.Domain;
++
++public class ClickCapTests
++{
++    private static readonly DateTimeOffset Now = new(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
++
++    [Theory]
++    [InlineData(0)]
++    [InlineData(-5)]
++    [InlineData(ShortLink.MaxClicksLimit + 1)]
++    public void Max_clicks_outside_range_is_rejected(int maxClicks)
++    {
++        var result = ShortLink.Create(Code(), Url(), "hash", Now, null, false, maxClicks);
++
++        Assert.Equal(DomainErrors.Link.MaxClicksRange, result.Error);
++    }
++
++    [Fact]
++    public void Uncapped_link_is_never_exhausted()
++    {
++        var link = ShortLink.Create(Code(), Url(), "hash", Now, null, false).Value;
++
++        Assert.Null(link.MaxClicks);
++        Assert.False(link.IsExhausted);
++        Assert.True(link.EnsureResolvable(Now).IsSuccess);
++    }
++
++    [Fact]
++    public void Route_at_its_cap_is_gone_with_exhausted_error()
++    {
++        var route = new LinkRoute(Guid.NewGuid(), "capped", new Uri("https://example.com"), null, null, MaxClicks: 2, ClickCount: 2);
++
++        Assert.Equal(DomainErrors.Link.Exhausted, route.EnsureResolvable(Now).Error);
++    }
++
++    [Fact]
++    public void Route_below_its_cap_resolves()
++    {
++        var route = new LinkRoute(Guid.NewGuid(), "capped", new Uri("https://example.com"), null, null, MaxClicks: 2, ClickCount: 1);
++
++        Assert.True(route.EnsureResolvable(Now).IsSuccess);
++        Assert.True(route.IsCapped);
++    }
++
++    private static ShortCode Code() => ShortCode.Create("capped-link").Value;
++
++    private static DestinationUrl Url() => DestinationUrl.Create("https://example.com").Value;
++}

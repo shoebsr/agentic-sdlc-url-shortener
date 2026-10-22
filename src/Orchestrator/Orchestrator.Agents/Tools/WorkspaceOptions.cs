@@ -4,7 +4,7 @@ public sealed class WorkspaceOptions
 {
     public const string SectionName = "Orchestrator:Workspace";
 
-    public string WorkspacesRoot { get; set; } = "data/workspaces";
+    public string WorkspacesRoot { get; set; } = "workspaces";
 
     public string? SourceRoot { get; set; }
 

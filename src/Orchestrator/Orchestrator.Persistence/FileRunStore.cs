@@ -100,5 +100,5 @@ public sealed class PersistenceOptions
 {
     public const string SectionName = "Orchestrator:Persistence";
 
-    public string RunsDirectory { get; set; } = "data/runs";
+    public string RunsDirectory { get; set; } = "runs";
 }

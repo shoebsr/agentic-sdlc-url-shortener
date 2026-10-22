@@ -1,0 +1,12 @@
+id: ambiguous-safer-links
+title: Ambiguous - make links safer
+kind: Ambiguous
+initiatedBy: product-owner
+description: >
+  A vague request. The requirements agent flags the ambiguity, the planner inserts a human clarification
+  stage into the running workflow, and the clarified scope drives design and implementation.
+requirement: >
+  Customers say our short links are not safe enough. Make them safer, and it should stay fast.
+settings:
+  baseline: repository
+  patch.destination-blocklist: scenarios/patches/destination-blocklist.patch
