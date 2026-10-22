@@ -1,0 +1,59 @@
+﻿{
+  "Routes": [
+    {
+      "Key": "links",
+      "UpstreamPathTemplate": "/api/v1/links/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Delete" ],
+      "DownstreamPathTemplate": "/api/v1/links/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "UpstreamHeaderTransform": { "X-Forwarded-For": "{RemoteIpAddress}" },
+      "QoSOptions": { "TimeoutValue": 5000, "ExceptionsAllowedBeforeBreaking": 5, "DurationOfBreak": 10000 },
+      "Priority": 2
+    },
+    {
+      "Key": "links-root",
+      "UpstreamPathTemplate": "/api/v1/links",
+      "UpstreamHttpMethod": [ "Post" ],
+      "DownstreamPathTemplate": "/api/v1/links",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "UpstreamHeaderTransform": { "X-Forwarded-For": "{RemoteIpAddress}" },
+      "QoSOptions": { "TimeoutValue": 5000, "ExceptionsAllowedBeforeBreaking": 5, "DurationOfBreak": 10000 },
+      "Priority": 2
+    },
+    {
+      "Key": "docs",
+      "UpstreamPathTemplate": "/swagger/{everything}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/swagger/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "Priority": 2
+    },
+    {
+      "Key": "openapi",
+      "UpstreamPathTemplate": "/openapi/{everything}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/openapi/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "Priority": 2
+    },
+    {
+      "Key": "redirect",
+      "UpstreamPathTemplate": "/{code}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/{code}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5081 } ],
+      "UpstreamHeaderTransform": { "X-Forwarded-For": "{RemoteIpAddress}" },
+      "QoSOptions": { "TimeoutValue": 2000, "ExceptionsAllowedBeforeBreaking": 10, "DurationOfBreak": 5000 },
+      "Priority": 0
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://localhost:5000"
+  }
+}
+
