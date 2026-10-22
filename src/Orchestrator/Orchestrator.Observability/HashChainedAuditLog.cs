@@ -9,35 +9,21 @@ namespace Orchestrator.Observability;
 
 public sealed class HashChainedAuditLog : IAuditLog, IDisposable
 {
+    private const string Genesis = "GENESIS";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(10);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly List<AuditEvent> _events = [];
+    private readonly List<AuditEvent> _memory = [];
     private readonly string? _path;
-    private string _lastHash = "GENESIS";
-    private long _sequence;
 
     public HashChainedAuditLog(IOptions<ObservabilityOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (string.IsNullOrWhiteSpace(options.Value.AuditFile))
+        if (!string.IsNullOrWhiteSpace(options.Value.AuditFile))
         {
-            return;
-        }
-
-        _path = Path.GetFullPath(options.Value.AuditFile);
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        if (!File.Exists(_path))
-        {
-            return;
-        }
-
-        foreach (var line in File.ReadLines(_path).Where(l => !string.IsNullOrWhiteSpace(l)))
-        {
-            var restored = JsonSerializer.Deserialize<AuditEvent>(line, Json)!;
-            _events.Add(restored);
-            _lastHash = restored.Hash;
-            _sequence = restored.Sequence;
+            _path = Path.GetFullPath(options.Value.AuditFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         }
     }
 
@@ -47,16 +33,21 @@ public sealed class HashChainedAuditLog : IAuditLog, IDisposable
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            var sequenced = auditEvent with { Sequence = ++_sequence, PreviousHash = _lastHash, Hash = string.Empty };
-            var sealedEvent = sequenced with { Hash = ComputeHash(sequenced) };
-            _events.Add(sealedEvent);
-            _lastHash = sealedEvent.Hash;
-
-            if (_path is not null)
+            if (_path is null)
             {
-                await File.AppendAllTextAsync(_path, JsonSerializer.Serialize(sealedEvent, Json) + Environment.NewLine, cancellationToken);
+                var previous = _memory.Count == 0 ? null : _memory[^1];
+                var sealedInMemory = Seal(auditEvent, previous);
+                _memory.Add(sealedInMemory);
+                return sealedInMemory;
             }
 
+            await using var stream = await OpenExclusiveAsync(_path, cancellationToken);
+            var last = await ReadLastAsync(stream, cancellationToken);
+            var sealedEvent = Seal(auditEvent, last);
+            stream.Seek(0, SeekOrigin.End);
+            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(sealedEvent, Json) + "\n");
+            await stream.WriteAsync(bytes, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
             return sealedEvent;
         }
         finally
@@ -70,7 +61,8 @@ public sealed class HashChainedAuditLog : IAuditLog, IDisposable
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return runId is null ? [.. _events] : [.. _events.Where(e => e.RunId == runId)];
+            IReadOnlyList<AuditEvent> events = _path is null ? [.. _memory] : await ReadAllAsync(_path, cancellationToken);
+            return runId is null ? events : [.. events.Where(e => e.RunId == runId)];
         }
         finally
         {
@@ -81,7 +73,7 @@ public sealed class HashChainedAuditLog : IAuditLog, IDisposable
     public async Task<AuditVerification> VerifyAsync(CancellationToken cancellationToken)
     {
         var events = await ReadAsync(null, cancellationToken);
-        var previous = "GENESIS";
+        var previous = Genesis;
         foreach (var auditEvent in events)
         {
             if (auditEvent.PreviousHash != previous || auditEvent.Hash != ComputeHash(auditEvent with { Hash = string.Empty }))
@@ -110,5 +102,68 @@ public sealed class HashChainedAuditLog : IAuditLog, IDisposable
             auditEvent.At.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
             auditEvent.PreviousHash);
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static AuditEvent Seal(AuditEvent auditEvent, AuditEvent? previous)
+    {
+        var sequenced = auditEvent with
+        {
+            Sequence = (previous?.Sequence ?? 0) + 1,
+            PreviousHash = previous?.Hash ?? Genesis,
+            Hash = string.Empty,
+        };
+        return sequenced with { Hash = ComputeHash(sequenced) };
+    }
+
+    private static async Task<FileStream> OpenExclusiveAsync(string path, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + LockTimeout;
+        while (true)
+        {
+            try
+            {
+                return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.Asynchronous);
+            }
+            catch (IOException) when (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(Random.Shared.Next(5, 25), cancellationToken);
+            }
+        }
+    }
+
+    private static async Task<AuditEvent?> ReadLastAsync(FileStream stream, CancellationToken cancellationToken)
+    {
+        if (stream.Length == 0)
+        {
+            return null;
+        }
+
+        var window = (int)Math.Min(stream.Length, 64 * 1024);
+        var buffer = new byte[window];
+        stream.Seek(-window, SeekOrigin.End);
+        await stream.ReadExactlyAsync(buffer, cancellationToken);
+        var lines = Encoding.UTF8.GetString(buffer).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        return lines.Length == 0 ? null : JsonSerializer.Deserialize<AuditEvent>(lines[^1], Json);
+    }
+
+    private static async Task<IReadOnlyList<AuditEvent>> ReadAllAsync(string path, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(path))
+        {
+            return [];
+        }
+
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.Asynchronous);
+        using var reader = new StreamReader(stream);
+        var events = new List<AuditEvent>();
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            if (!string.IsNullOrWhiteSpace(line))
+            {
+                events.Add(JsonSerializer.Deserialize<AuditEvent>(line, Json)!);
+            }
+        }
+
+        return events;
     }
 }

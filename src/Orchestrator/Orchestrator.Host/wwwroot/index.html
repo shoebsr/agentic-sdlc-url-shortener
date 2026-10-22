@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SDLC Control Plane</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <h1>SDLC Control Plane</h1>
+        <p>Agentic delivery · governed autonomy</p>
+      </div>
+    </div>
+    <div class="metrics" id="metrics"></div>
+    <div class="top-actions">
+      <button class="chip" id="killSwitch" type="button">Kill switch</button>
+      <button class="icon-btn" id="themeToggle" type="button" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="glass panel">
+        <div class="panel-head"><h2>Launch scenario</h2>
+          <label class="switch"><input type="checkbox" id="simulate"><span></span>Simulated</label>
+        </div>
+        <div id="scenarios" class="scenario-list"></div>
+      </section>
+      <section class="glass panel grow">
+        <div class="panel-head"><h2>Runs</h2><span class="muted" id="runCount"></span></div>
+        <div id="runs" class="run-list"></div>
+      </section>
+    </aside>
+
+    <section class="content">
+      <div id="empty" class="glass empty">
+        <div class="orb" aria-hidden="true"></div>
+        <h2>Select or launch a run</h2>
+        <p>Every stage is executed by an agent, gated by policy, and approved by a human where it matters.</p>
+      </div>
+
+      <div id="runView" class="hidden">
+        <section class="glass run-header">
+          <div>
+            <div class="eyebrow" id="runKind"></div>
+            <h2 id="runTitle"></h2>
+            <p class="requirement" id="runRequirement"></p>
+          </div>
+          <div class="run-meta">
+            <span class="status-pill" id="runStatus"></span>
+            <span class="chip ghost" id="runPlan"></span>
+            <div class="run-controls">
+              <button class="btn ghost" id="haltBtn" type="button">Safe-stop</button>
+              <button class="btn ghost" id="resumeBtn" type="button">Resume</button>
+              <button class="btn ghost" id="amendBtn" type="button">Amend requirement</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass graph-card">
+          <div class="panel-head"><h2>Execution graph</h2>
+            <div class="legend">
+              <span class="dot pending"></span>Pending<span class="dot running"></span>Running
+              <span class="dot awaiting"></span>Awaiting<span class="dot succeeded"></span>Done
+              <span class="dot failed"></span>Failed<span class="dot rolledback"></span>Rolled back
+            </div>
+          </div>
+          <div class="graph-scroll"><svg id="graph" role="img" aria-label="Workflow dependency graph"></svg></div>
+        </section>
+
+        <div class="grid-2">
+          <section class="glass panel" id="actionPanel">
+            <div class="panel-head"><h2>Human checkpoints</h2></div>
+            <div id="actions"></div>
+          </section>
+          <section class="glass panel">
+            <div class="panel-head"><h2>Live timeline</h2><span class="live-dot" id="liveDot"></span></div>
+            <ol id="timeline" class="timeline"></ol>
+          </section>
+        </div>
+
+        <div class="grid-2">
+          <section class="glass panel">
+            <div class="panel-head"><h2>Artifacts</h2></div>
+            <div id="artifacts" class="artifact-grid"></div>
+          </section>
+          <section class="glass panel">
+            <div class="panel-head"><h2>Decision lineage</h2></div>
+            <ol id="decisions" class="decisions"></ol>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="viewer" class="glass viewer">
+    <div class="viewer-head">
+      <div><div class="eyebrow" id="viewerMeta"></div><h3 id="viewerTitle"></h3></div>
+      <button class="icon-btn" id="viewerClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <article id="viewerBody" class="markdown"></article>
+  </dialog>
+
+  <dialog id="amendDialog" class="glass viewer narrow">
+    <form id="amendForm" method="dialog">
+      <h3>Amend requirement</h3>
+      <p class="muted">Downstream stages are invalidated, compensated where needed, and re-planned.</p>
+      <textarea id="amendText" rows="6" required maxlength="4000"></textarea>
+      <input id="amendReason" placeholder="Reason for change" maxlength="200">
+      <div class="row end"><button class="btn ghost" value="cancel" type="button" id="amendCancel">Cancel</button><button class="btn primary" type="submit">Re-plan</button></div>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
