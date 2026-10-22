@@ -396,3 +396,7 @@ dotnet_diagnostic.CA1000.severity = none
 [**/Migrations/*.cs]
 generated_code = true
 
+
+[src/Orchestrator/Orchestrator.Agents/**.cs]
+dotnet_diagnostic.CA1305.severity = none
+
