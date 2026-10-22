@@ -1,0 +1,14 @@
+﻿{
+  "profiles": {
+    "UrlShortener.Redirect": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "launchUrl": "",
+      "applicationUrl": "http://localhost:5081",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

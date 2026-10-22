@@ -2,6 +2,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UrlShortener.Infrastructure\UrlShortener.Infrastructure.csproj" />
+    <ProjectReference Include="..\UrlShortener.Presentation\UrlShortener.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.1" />
   </ItemGroup>
 
   <PropertyGroup>

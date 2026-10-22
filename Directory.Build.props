@@ -1,5 +1,4 @@
 <Project>
-  <!-- Solution-wide build policy: every project is held to the same quality bar. -->
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -8,14 +7,10 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- CS1591: missing XML docs on public members; public surface is documented where it matters. -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsTestProject)' == 'true' Or $(MSBuildProjectName.EndsWith('Tests'))">
-    <!-- Test naming (underscores) and async-void xunit patterns are intentional in tests. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
     <NoWarn>$(NoWarn);CA1707;CA2007;CA1515;CA1861</NoWarn>
   </PropertyGroup>
 </Project>
