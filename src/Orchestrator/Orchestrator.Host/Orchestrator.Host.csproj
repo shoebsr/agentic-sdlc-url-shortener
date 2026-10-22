@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Orchestrator.Governance\Orchestrator.Governance.csproj" />
+    <ProjectReference Include="..\Orchestrator.Observability\Orchestrator.Observability.csproj" />
+    <ProjectReference Include="..\Orchestrator.Persistence\Orchestrator.Persistence.csproj" />
+    <ProjectReference Include="..\Orchestrator.Agents\Orchestrator.Agents.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
