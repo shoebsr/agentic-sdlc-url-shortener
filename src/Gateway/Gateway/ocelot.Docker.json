@@ -4,7 +4,9 @@
     { "DownstreamHostAndPorts": [ { "Host": "links-api", "Port": 8080 } ] },
     { "DownstreamHostAndPorts": [ { "Host": "links-api", "Port": 8080 } ] },
     { "DownstreamHostAndPorts": [ { "Host": "links-api", "Port": 8080 } ] },
-    { "DownstreamHostAndPorts": [ { "Host": "redirect", "Port": 8080 } ] }
+    { "DownstreamHostAndPorts": [ { "Host": "redirect", "Port": 8080 } ] },
+    { "DownstreamHostAndPorts": [ { "Host": "links-api", "Port": 8080 } ] },
+    { "DownstreamHostAndPorts": [ { "Host": "links-api", "Port": 8080 } ] }
   ],
   "GlobalConfiguration": {
     "BaseUrl": "http://localhost:8080"

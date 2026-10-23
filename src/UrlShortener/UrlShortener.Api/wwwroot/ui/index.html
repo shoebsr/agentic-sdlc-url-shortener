@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shortly</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="glow" aria-hidden="true"><span></span><span></span></div>
+
+  <header class="bar">
+    <div class="brand"><span class="mark" aria-hidden="true">⌁</span><div><h1>Shortly</h1><p>Short links with analytics</p></div></div>
+    <nav class="row">
+      <a class="link" href="/swagger" target="_blank" rel="noopener">API docs</a>
+      <button class="icon" id="theme" type="button" aria-label="Toggle theme">◐</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card hero">
+      <h2>Shorten a link</h2>
+      <p class="muted">Safe by default: private-network, script and credential URLs are rejected.</p>
+      <form id="createForm" autocomplete="off">
+        <div class="field grow">
+          <label for="url">Destination URL</label>
+          <input id="url" type="url" required maxlength="2048" placeholder="https://www.example.com/a/very/long/path">
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="alias">Custom alias <span class="muted">optional</span></label>
+            <input id="alias" maxlength="32" pattern="[A-Za-z0-9_\-]{4,32}" placeholder="my-campaign">
+          </div>
+          <div class="field">
+            <label for="expires">Expires <span class="muted">optional</span></label>
+            <input id="expires" type="datetime-local">
+          </div>
+        </div>
+        <button class="btn primary" type="submit" id="createBtn">Shorten</button>
+      </form>
+      <div id="result" class="result hidden">
+        <div>
+          <span class="muted">Your short link</span>
+          <a id="resultLink" target="_blank" rel="noopener"></a>
+        </div>
+        <div class="row">
+          <button class="btn" id="copyBtn" type="button">Copy</button>
+          <a class="btn" id="openBtn" target="_blank" rel="noopener">Open</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>My links</h2><span class="muted" id="count"></span></div>
+      <p class="muted small">Links you create in this browser are listed here. Their management keys stay in this browser only.</p>
+      <div id="links" class="links"></div>
+    </section>
+
+    <section class="card hidden" id="analytics">
+      <div class="head"><h2 id="aTitle">Analytics</h2>
+        <select id="window" aria-label="Window"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
+      </div>
+      <div class="stats" id="stats"></div>
+      <svg id="chart" role="img" aria-label="Daily clicks"></svg>
+      <h3>Top referrers</h3>
+      <ol id="referrers" class="referrers"></ol>
+    </section>
+  </main>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

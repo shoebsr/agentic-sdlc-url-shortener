@@ -17,6 +17,10 @@ app.UseSwaggerUI(options =>
     options.DocumentTitle = "URL Shortener API";
 });
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.MapGet("/", () => Results.Redirect("/ui/")).ExcludeFromDescription();
+
 app.MapLinkManagementEndpoints();
 if (app.Configuration.GetValue("Hosting:ServeRedirects", true))
 {

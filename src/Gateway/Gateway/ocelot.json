@@ -50,6 +50,24 @@
       "UpstreamHeaderTransform": { "X-Forwarded-For": "{RemoteIpAddress}" },
       "QoSOptions": { "TimeoutValue": 2000, "ExceptionsAllowedBeforeBreaking": 10, "DurationOfBreak": 5000 },
       "Priority": 0
+    },
+    {
+      "Key": "ui",
+      "UpstreamPathTemplate": "/ui/{everything}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/ui/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "Priority": 2
+    },
+    {
+      "Key": "home",
+      "UpstreamPathTemplate": "/",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "localhost", "Port": 5080 } ],
+      "Priority": 2
     }
   ],
   "GlobalConfiguration": {
