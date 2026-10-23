@@ -1,21 +1,8 @@
-diff --git a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.css b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.css
-index b668b38..c48c3be 100644
---- a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.css
-+++ b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.css
-@@ -37,7 +37,7 @@ body { margin: 0; font-family: var(--font); color: var(--text); background: var(
- @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
- 
- form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
--.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
- .field { display: flex; flex-direction: column; gap: 6px; }
- label { font-size: 12px; font-weight: 600; letter-spacing: 0.3px; }
- input, select { font: inherit; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--field); color: var(--text); transition: border-color 0.2s, box-shadow 0.2s; }
 diff --git a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.js b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.js
-index c9e997f..97f36f0 100644
+index e37e639..e3a1be8 100644
 --- a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.js
 +++ b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/app.js
-@@ -38,6 +38,7 @@ function buildRequest() {
+@@ -60,6 +60,7 @@ function buildRequest() {
      url: $("url").value.trim(),
      customAlias: $("alias").value.trim() || null,
      expiresAt: expires ? new Date(expires).toISOString() : null,
@@ -23,10 +10,10 @@ index c9e997f..97f36f0 100644
    };
  }
  
-@@ -47,6 +48,10 @@ function linkMeta(link) {
-     `<span class="pill">${link.clickCount} click${link.clickCount === 1 ? "" : "s"}</span>`,
+@@ -70,6 +71,10 @@ function linkMeta(link) {
+     `<span class="pill">Created ${esc(relative(link.createdAt))}</span>`,
    ];
-   if (link.expiresAt) pills.push(`<span class="pill">Expires ${esc(new Date(link.expiresAt).toLocaleString())}</span>`);
+   if (link.expiresAt) pills.push(`<span class="pill">Expires ${esc(new Date(link.expiresAt).toLocaleDateString())}</span>`);
 +  if (link.maxClicks) {
 +    const left = Math.max(0, link.maxClicks - link.clickCount);
 +    pills.push(`<span class="pill ${left === 0 ? "off" : ""}">${left === 0 ? "Limit reached" : `${left} of ${esc(link.maxClicks)} clicks left`}</span>`);
@@ -35,19 +22,29 @@ index c9e997f..97f36f0 100644
  }
  
 diff --git a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/index.html b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/index.html
-index 1bea6b6..8994daf 100644
+index 53c50d0..fd3eb33 100644
 --- a/src/UrlShortener/UrlShortener.Api/wwwroot/ui/index.html
 +++ b/src/UrlShortener/UrlShortener.Api/wwwroot/ui/index.html
-@@ -35,6 +35,10 @@
-             <label for="expires">Expires <span class="muted">optional</span></label>
-             <input id="expires" type="datetime-local">
+@@ -46,7 +46,7 @@
+         <p class="hint" id="urlHint" aria-live="polite"></p>
+ 
+         <details class="options" id="options">
+-          <summary>Options <span class="muted">custom alias, expiry</span></summary>
++          <summary>Options <span class="muted">custom alias, expiry, click limit</span></summary>
+           <div class="grid">
+             <div class="field">
+               <label for="alias">Custom alias</label>
+@@ -58,6 +58,11 @@
+               <input id="expires" type="datetime-local">
+               <small class="muted">Leave empty to keep it forever</small>
+             </div>
++            <div class="field">
++              <label for="maxClicks">Max clicks</label>
++              <input id="maxClicks" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="e.g. 100">
++              <small class="muted">Stops redirecting after this many clicks</small>
++            </div>
            </div>
-+          <div class="field">
-+            <label for="maxClicks">Max clicks <span class="muted">optional</span></label>
-+            <input id="maxClicks" type="number" min="1" max="1000000" step="1" placeholder="e.g. 100">
-+          </div>
-         </div>
-         <button class="btn primary" type="submit" id="createBtn">Shorten</button>
+         </details>
        </form>
 diff --git a/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs b/src/UrlShortener/UrlShortener.Application/Abstractions/LinkRoute.cs
 index 9adfc55..bd6243a 100644
