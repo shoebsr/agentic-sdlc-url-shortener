@@ -27,7 +27,8 @@ public sealed record DestinationUrl
             return DomainErrors.Url.TooLong;
         }
 
-        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri)
+            || (uri.IsFile && !raw.StartsWith(Uri.UriSchemeFile + ":", StringComparison.OrdinalIgnoreCase)))
         {
             return DomainErrors.Url.Malformed;
         }
