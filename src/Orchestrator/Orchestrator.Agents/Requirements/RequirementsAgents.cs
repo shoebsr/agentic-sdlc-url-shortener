@@ -103,7 +103,9 @@ public static partial class RequirementsAnalysis
             Decisions =
             [
                 new DecisionDraft(
-                    $"Normalised requirement into {spec.Capabilities.Count} capability(ies): {string.Join(", ", spec.Capabilities)}",
+                    spec.Capabilities.Count == 0
+                        ? "No concrete capability identified yet; scope depends on clarification"
+                        : $"Normalised requirement into {spec.Capabilities.Count} capability(ies): {string.Join(", ", spec.Capabilities)}",
                     reasoning,
                     ["Treat the request literally without normalisation", "Ask the requester to rewrite the requirement"]),
                 .. spec.Ambiguities.Select(a => new DecisionDraft($"Flagged ambiguity '{a.Term}' ({a.Category})", a.Question)),

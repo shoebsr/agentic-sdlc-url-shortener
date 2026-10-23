@@ -293,7 +293,7 @@ function appendEvent(e) {
 }
 
 function markdown(source) {
-  const lines = esc(source).split("\n");
+  const lines = esc(String(source).replace(/\r\n?/g, "\n")).split("\n");
   const out = [];
   let i = 0;
   const inline = (text) => text

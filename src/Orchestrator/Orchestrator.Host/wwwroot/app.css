@@ -94,7 +94,7 @@ body {
 .row.end { justify-content: flex-end; }
 
 button { font: inherit; cursor: pointer; }
-.btn { border: 1px solid var(--stroke); background: var(--glass-strong); color: var(--text); padding: 8px 14px; border-radius: 11px; transition: transform 0.15s, background 0.2s, box-shadow 0.2s; }
+.btn { text-decoration: none; border: 1px solid var(--stroke); background: var(--glass-strong); color: var(--text); padding: 8px 14px; border-radius: 11px; transition: transform 0.15s, background 0.2s, box-shadow 0.2s; }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(124, 92, 255, 0.25); }
 .btn.primary { background: linear-gradient(135deg, var(--accent), #5b8cff); border: 0; color: #fff; }
 .btn.ok { background: linear-gradient(135deg, #10b981, #34d399); border: 0; color: #04210f; font-weight: 600; }
@@ -300,3 +300,7 @@ label.q { display: block; font-size: 12px; margin: 10px 0 6px; line-height: 1.4;
   .toast { max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.grid-2 > *, .content, .layout > * { min-width: 0; }
+.timeline .msg, .card p, .decided, .decisions .d-why, .decisions .d-head, .requirement { overflow-wrap: anywhere; }
+.evidence span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

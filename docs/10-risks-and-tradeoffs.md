@@ -44,6 +44,7 @@
 6. **Release** produces a tagged commit and a patch in the sandbox; it does not open a pull request or deploy.
 7. **Scenario tests simulate build and test execution**; live sandbox builds are exercised through the CLI and dashboard, not in CI.
 8. **Metrics are in-process** and reset when the host restarts (audit history is durable).
+9. **Preview environments** are child processes of the orchestrator: a graceful shutdown stops them, but a forced kill of the host can leave them running (production would run each preview in its own container).
 
 ## 4. Assumptions
 

@@ -34,6 +34,32 @@ flowchart LR
   (create links, analytics, disable) and Swagger.
 - **No API keys required** — deterministic agents by default; optional Claude or OpenAI-compatible reasoning.
 
+## Screenshots
+
+**Control plane** — a brownfield run released and deployed to a live preview (left); a governed approval with policy
+evidence (right).
+
+| | |
+|---|---|
+| ![Run succeeded with preview](docs/screenshots/dashboard-overview.png) | ![High-risk approval with evidence](docs/screenshots/dashboard-approval.png) |
+| Ambiguous request — clarification stage inserted at run time | Committed secret denied by policy and rolled back |
+| ![Clarification](docs/screenshots/dashboard-clarification.png) | ![Rolled back](docs/screenshots/dashboard-rolled-back.png) |
+| Codebase impact analysis artifact | Release package — reviewable diff |
+| ![Impact analysis](docs/screenshots/artifact-impact-analysis.png) | ![Release diff](docs/screenshots/artifact-release-package.png) |
+
+**The delivered application (Shortly)** — served from the preview environment of the run above, including the
+*Max clicks* field the brownfield change added.
+
+| | |
+|---|---|
+| ![Shortly](docs/screenshots/shortly-desktop.png) | ![Analytics](docs/screenshots/shortly-analytics.png) |
+
+**Mobile**
+
+| Shortly | Analytics sheet | Control plane |
+|---|---|---|
+| ![Mobile Shortly](docs/screenshots/mobile-shortly.png) | ![Mobile analytics](docs/screenshots/mobile-shortly-analytics.png) | ![Mobile dashboard](docs/screenshots/mobile-dashboard.png) |
+
 ## Quick start
 
 ```powershell
