@@ -26,7 +26,7 @@ public static partial class RequirementsAnalysis
 
         foreach (var vague in Catalog.VagueTerms)
         {
-            if (Regex.IsMatch(requirement, $@"\b{Regex.Escape(vague.Term)}(er|est|ly|ness)?\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1))
+            if (Regex.IsMatch(requirement, $@"\b{Regex.Escape(vague.Term)}(r|er|st|est|ly|ness)?\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1))
                 && ambiguities.All(a => a.Category != vague.Category)
                 && !HasMeasurableTarget(requirement, vague.Category))
             {

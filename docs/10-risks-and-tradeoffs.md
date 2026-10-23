@@ -42,7 +42,7 @@
 4. **Approver identity is a header** (`X-Actor`) validated against a configured list. Production needs OIDC.
 5. **Agents run as processes** in a sandbox directory, not in isolated containers.
 6. **Release** produces a tagged commit and a patch in the sandbox; it does not open a pull request or deploy.
-7. **Orchestrator automated tests** are scenario-level; a dedicated unit-test project for the engine is the next step.
+7. **Scenario tests simulate build and test execution**; live sandbox builds are exercised through the CLI and dashboard, not in CI.
 8. **Metrics are in-process** and reset when the host restarts (audit history is durable).
 
 ## 4. Assumptions

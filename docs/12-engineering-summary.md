@@ -50,7 +50,9 @@ Prepared by **Shoeb Raza**.
 | Check | Result |
 |-------|--------|
 | `dotnet build` (warnings as errors, analyzers) | Clean |
-| Shortener unit / integration tests | 61 / 12 passing (baseline); 67 / 16 with click-cap; 68 / 13 with blocklist |
+| Full test suite (`dotnet test AgenticSdlc.sln`) | 178 passing: orchestrator 99 unit + 6 scenario, shortener 61 unit + 12 integration |
+| Shortener tests with each change recipe applied | 67 / 16 with click-cap; 68 / 13 with blocklist |
+| Defects caught by the orchestrator test suite | Timeout not enforced on non-cooperative agents; double plan-version increment on amendment; lexicon missed "safer" — all fixed |
 | Live brownfield run | Real build and tests in the sandbox, three approvals, released |
 | Simulated runs of all four scenarios | Succeeded / Succeeded / Succeeded / RolledBack as designed |
 | Docker Compose end-to-end | Create via gateway → 20 redirects over 2 replicas → 2 workers consumed the stream (lag 0) → analytics correct; spoofed `X-Forwarded-For` ignored |
@@ -74,9 +76,8 @@ and schema changes additive; evaluators may lack API keys and infrastructure.
 
 ## 7. What I would do next
 
-1. Engine unit-test project (graph, scheduler, retries, compensation, inbox, policies, audit chain).
-2. Orchestrator container in Docker Compose; database-backed run store with per-run distributed locks.
-3. OIDC for dashboard and approvals; approver identity from the token.
-4. Container-isolated agent sandboxes with a package-mirror-only network.
-5. Pull-request based release (open a PR with the patch, checks and approvals attached).
-6. Load test of the redirect path (NBomber/k6) to set the p95 target from data.
+1. Orchestrator container in Docker Compose; database-backed run store with per-run distributed locks.
+2. OIDC for dashboard and approvals; approver identity from the token.
+3. Container-isolated agent sandboxes with a package-mirror-only network.
+4. Pull-request based release (open a PR with the patch, checks and approvals attached).
+5. Load test of the redirect path (NBomber/k6) to set the p95 target from data.

@@ -4,17 +4,22 @@
 
 ```mermaid
 flowchart TB
-    E2E["Scenario runs — orchestrator drives the full SDLC<br/>live mode: real build + tests in a sandbox"]
+    E2E["Scenario tests — all four scenarios end to end<br/>real DI, git sandboxes, policies and agents"]
     INT["Integration tests — real HTTP pipeline<br/>WebApplicationFactory + SQLite in-memory"]
-    UNIT["Unit tests — domain rules, use cases, security primitives"]
+    UNIT["Unit tests — engine, governance, observability, persistence, agents,<br/>shortener domain, use cases and security primitives"]
     E2E --- INT --- UNIT
 ```
 
-| Level | Project | Count (baseline) | Speed |
-|-------|---------|------------------|-------|
+| Level | Project | Tests | Speed |
+|-------|---------|-------|-------|
+| Unit | `tests/Orchestrator.UnitTests` | 99 | ~1 s |
+| Scenario | `tests/Orchestrator.ScenarioTests` | 6 | ~15 s |
 | Unit | `tests/UrlShortener.UnitTests` | 61 | < 1 s |
 | Integration | `tests/UrlShortener.IntegrationTests` | 12 | ~3 s |
-| Scenario (orchestrated) | `Orchestrator.Host run <scenario>` | 4 scenarios | ~2 s simulated, ~30 s live |
+| **Total** | | **178** | |
+
+Live scenario runs (`Orchestrator.Host run <scenario>` without `--simulate`) additionally build and test the modified
+shortener inside the sandbox (~30 s).
 
 The brownfield and ambiguous change recipes add their own tests (click-cap: +6 unit, +4 integration;
 blocklist: +7 unit, +1 integration), which run inside the sandbox when those scenarios execute live.
@@ -33,7 +38,42 @@ blocklist: +7 unit, +1 integration), which run inside the sandbox when those sce
 
 Tests use a manual `TimeProvider` for time-dependent rules and in-memory fakes for ports, so unit tests have no I/O.
 
-## 3. How orchestration is validated
+## 3. What the orchestrator tests cover
+
+Engine tests run real `WorkflowEngine`, `RunCoordinator`, gates, policies, approval authority, audit log and run
+store; only the agents are scripted, so each behaviour is driven deterministically.
+
+| Area | Examples |
+|------|----------|
+| Scheduling | Dependency order; two branches proven to run concurrently (each waits for the other to start); join sees both outputs |
+| Resilience | Transient failures retried within budget with MTTR recorded; permanent failures not retried; fallback agent used after the primary is exhausted; agent that ignores cancellation still times out |
+| Rollback | Compensation in reverse topological order; downstream never scheduled after a failure; `Failed` vs `RolledBack` |
+| Lineage | Artifacts versioned and hashed with input lineage; decisions carry actor, plan version, alternatives and input hashes |
+| Governance | Checkpoint pauses until an authorised approver; rejection rolls back; segregation of duties, unregistered approver and risk ceiling refusals; no double decision; policy deny compensates side effects; policy escalation raises risk with evidence; entry and exit gates; auto-approval ceiling; one branch's approval does not block a parallel branch |
+| Re-planning | Ambiguity inserts a clarification node (plan v2) and waits; missing answers without defaults rejected; requirement amendment invalidates, compensates, withdraws approvals and re-runs with a single plan increment |
+| Control | Safe-stop interrupts in-flight work and preserves completed work; resume does not redo completed nodes; kill switch blocks execution and resume until released |
+| Graph | Topological order, cycle and unknown-dependency rejection, duplicate ids, descendants, insertion rewiring, insertion that would create a cycle |
+| Policies | Each of the eight policies, including no false positive for the `Down()` migration and for configuration lookups of secrets |
+| Audit | Chain verifies; editing a past record is detected at its sequence; two instances appending concurrently keep one intact chain; per-run reads; live publisher filtering |
+| Metrics | Success, retry and rollback rates, MTTR, mean and p95 latency, per-stage failures |
+| Persistence | Full round trip of run state; path-traversal run ids rejected; newest-first listing |
+| Agents | Capability detection (greenfield, brownfield net-new only), ambiguity questions with defaults, measurable targets not flagged, unknown scope flagged, template DAG shape for each scenario kind, fault-plan parsing |
+
+Scenario tests drive the real composition root (`AddOrchestrator`) with simulated build/test execution and assert
+the business outcome of each scenario: brownfield released with a High-risk migration approval and `MaxClicks` in
+the release patch; ambiguous re-planned to v2 and scoped to the blocklist; ambiguous run left unanswered stays in
+`AwaitingInput` with no design produced; greenfield recovers through fallback and retry; the committed secret is
+denied and the sandbox no longer contains the change; the initiator cannot approve their own run.
+
+### Defects found by these tests
+
+| Defect | Fix |
+|--------|-----|
+| An agent that ignored its cancellation token could hold a node past its timeout and block safe-stop | The engine now abandons the agent task at the deadline or on safe-stop instead of relying on cooperation |
+| Amending a requirement bumped the plan version twice | Re-planning on changed output only happens when there are settled descendants to invalidate |
+| The vague-term lexicon missed comparative forms such as "safer" | Suffix matching now covers `-r`, `-er`, `-st`, `-est`, `-ly`, `-ness` |
+
+## 4. How orchestration is validated end to end
 
 | Property | Evidence |
 |----------|----------|
@@ -59,7 +99,7 @@ Any run can carry a fault plan (`settings.faults` or CLI `--faults`):
 
 Injected faults are written to the audit log as `fault.injected`, so they are never mistaken for real failures.
 
-## 4. Running the tests
+## 5. Running the tests
 
 ```powershell
 dotnet test AgenticSdlc.sln
@@ -68,10 +108,9 @@ dotnet test AgenticSdlc.sln
 CI (`.github/workflows/ci.yml`) restores, builds in Release with warnings as errors, runs all tests with coverage
 collection, uploads results, then builds every Docker image.
 
-## 5. Gaps
+## 6. Gaps
 
 | Gap | Mitigation today | Next step |
 |-----|------------------|-----------|
-| Orchestrator engine has no dedicated unit-test project yet | Validated through scenario runs with fault injection | Unit tests for graph validation, scheduling, retry/fallback, compensation, inbox, gates, policies, audit chain |
 | No load test | Architecture reasoning, rate limits, async pipeline | k6 / NBomber against the Docker stack |
 | No Testcontainers SQL Server suite | SQLite in-memory + live smoke tests against SQL Server | Testcontainers in CI |

@@ -387,11 +387,11 @@ public sealed partial class WorkflowEngine(
         timeout.CancelAfter(node.Timeout);
         try
         {
-            return await agents.Resolve(agentName).ExecuteAsync(context, timeout.Token);
+            return await agents.Resolve(agentName).ExecuteAsync(context, timeout.Token).WaitAsync(node.Timeout, clock, cancellationToken);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (ex is TimeoutException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
-            return AgentOutcome.Failure($"{agentName} exceeded timeout of {node.Timeout.TotalSeconds:F0}s", transient: true);
+            return AgentOutcome.Failure($"{agentName} exceeded timeout of {node.Timeout.TotalSeconds:F1}s", transient: true);
         }
         catch (OperationCanceledException)
         {
@@ -469,7 +469,7 @@ public sealed partial class WorkflowEngine(
                 $"Plan v{run.PlanVersion}: inserted {insertion.Node.Id} before {insertion.Before}", node.Id, "planner");
         }
 
-        if (outputChanged && state.Executions > 1)
+        if (outputChanged && state.Executions > 1 && HasSettledDescendants(run, graph, node.Id))
         {
             run.PlanVersion++;
             await InvalidateAsync(run, node.Id, includeSelf: false, $"{node.Title} output changed on re-execution");
@@ -683,6 +683,9 @@ public sealed partial class WorkflowEngine(
             await journal.RecordAsync(run, "node.invalidated", $"{node.Title} invalidated: {reason}", id);
         }
     }
+
+    private static bool HasSettledDescendants(WorkflowRun run, WorkflowGraph graph, string nodeId) =>
+        graph.Descendants(nodeId).Any(id => run.StateOf(id).Status != NodeStatus.Pending);
 
     private bool StoreArtifact(WorkflowRun run, Artifact artifact, IReadOnlyDictionary<string, string> inputHashes)
     {
