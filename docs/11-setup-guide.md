@@ -121,9 +121,10 @@ Exit code is `0` when the run succeeds.
 5. Verification starts; unit tests, integration tests and security review run in parallel, docs alongside.
 6. Approve the go/no-go. The release package is created, then the **Preview deployment** stage starts the
    released build (about 30–60 s, it compiles the sandbox).
-7. The run ends **Succeeded** and a green **🚀 preview banner** appears with a link such as
-   `http://localhost:5100/swagger`. This is the software the agents just delivered: create a link with
-   `"maxClicks": 2`, open it twice, and the third visit returns **410 Gone**.
+7. The run ends **Succeeded** and a green **🚀 preview banner** appears. **Open app** launches the delivered
+   application (e.g. `http://localhost:5100/ui/`); **API docs** opens its Swagger. In the app, create a link with
+   **Max clicks = 2** (the field the brownfield change added), open it twice, and the third visit returns **410 Gone**;
+   the link list shows "Limit reached".
 8. **Stop preview** shuts it down; previews also stop on rollback and when the orchestrator stops.
 9. Open artifacts: `impact.analysis`, `design.doc`, `plan.tasks`, `tests.integration`, `release.package`
    (coloured diff), `release.preview`.
@@ -150,7 +151,12 @@ Launch **Greenfield** (Simulated on). The timeline shows `fault.injected` → `n
 - **Amend requirement** while a run is waiting → descendants invalidated, plan version increases.
 - **Kill switch** halts every running workflow until released.
 
-### 5.7 Shortener through Swagger
+### 5.7 Shortener web UI
+
+Open http://localhost:5080 (local) or http://localhost:8080 (Docker, through the gateway): create a link, open it,
+watch the click count, open **Analytics** for the daily chart and referrers, and **Disable** it (visitors then get 410).
+
+### 5.8 Shortener through Swagger
 1. `POST /api/v1/links` with `{"url":"https://www.schwab.com","customAlias":"test-123"}`; keep the `managementToken`.
 2. Browse to `/test-123` → redirected.
 3. `GET /api/v1/links/test-123/analytics` with header `X-Management-Token` → clicks, daily series, referrers.

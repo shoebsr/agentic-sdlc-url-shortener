@@ -27,6 +27,7 @@ public sealed class PreviewDeployerAgent(PreviewEnvironments previews) : IAgent
         var md = new StringBuilder("## Preview environment\n\n");
         md.AppendLine($"The released build is running from the run's sandbox.").AppendLine();
         md.AppendLine("| | |").AppendLine("|---|---|");
+        md.AppendLine($"| Application | {preview.AppUrl} |");
         md.AppendLine($"| API documentation | {preview.SwaggerUrl} |");
         md.AppendLine($"| Base URL (short links) | {preview.BaseUrl} |");
         md.AppendLine($"| Health | {preview.HealthUrl} |");

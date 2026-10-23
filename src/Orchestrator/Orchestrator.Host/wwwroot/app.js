@@ -204,9 +204,13 @@ async function renderPreview(run) {
   if (!done) { banner.classList.add("hidden"); return; }
   try {
     const preview = await api(`/api/runs/${encodeURIComponent(run.id)}/preview`);
-    $("previewLink").href = preview.swaggerUrl;
-    $("previewLink").textContent = preview.swaggerUrl;
-    $("previewBase").textContent = `Short links are served from ${preview.baseUrl} · isolated SQLite database`;
+    $("previewLink").href = preview.appUrl;
+    $("previewLink").textContent = preview.appUrl;
+    $("previewOpen").href = preview.appUrl;
+    $("previewSwagger").href = preview.swaggerUrl;
+    $("previewOpen").classList.remove("hidden");
+    $("previewSwagger").classList.remove("hidden");
+    $("previewBase").textContent = `The application the agents just delivered · short links served from ${preview.baseUrl} · isolated SQLite database`;
     $("previewState").textContent = "Live";
     $("previewState").className = "chip live-chip";
     $("previewStop").disabled = false;
@@ -216,6 +220,8 @@ async function renderPreview(run) {
     $("previewLink").textContent = "Preview stopped";
     $("previewLink").classList.add("dead");
     $("previewBase").textContent = "Re-run the scenario to deploy a new preview.";
+    $("previewOpen").classList.add("hidden");
+    $("previewSwagger").classList.add("hidden");
     $("previewState").textContent = "Stopped";
     $("previewState").className = "chip ghost";
     $("previewStop").disabled = true;

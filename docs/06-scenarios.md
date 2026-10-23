@@ -84,7 +84,7 @@ keep working exactly as before.*
 - Nullable column instead of a sentinel value (additive, backward-compatible migration).
 
 ### Orchestration
-- Implementation applies `scenarios/patches/click-cap.patch` (11 files, +329/−17) in the sandbox.
+- Implementation applies `scenarios/patches/click-cap.patch` (14 files, +339/−18: domain, application, migration, API contract, tests and a "Max clicks" field in the web UI) in the sandbox.
 - `change-control.protected-paths` escalates because migrations changed → **High** approval with the migration
   files listed as evidence.
 - After approval: build → (unit ‖ integration ‖ security) with docs in parallel → go/no-go → release.

@@ -29,6 +29,8 @@ public sealed class PreviewOptions
 
 public sealed record PreviewInfo(string RunId, Uri BaseUrl, int Port, DateTimeOffset StartedAt, string LogFile)
 {
+    public Uri AppUrl => new(BaseUrl, "ui/");
+
     public Uri SwaggerUrl => new(BaseUrl, "swagger");
 
     public Uri HealthUrl => new(BaseUrl, "health/ready");

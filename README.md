@@ -30,6 +30,8 @@ flowchart LR
 - **Scalable shortener** — Links API, Redirect service and Analytics worker behind an Ocelot gateway; SQL Server,
   two-tier Redis cache, Redis Streams; SSRF-safe URLs, owner tokens, rate limits, no raw IP storage.
 - **Live dashboard** — animated execution graph, timeline, approvals, artifacts and decision lineage.
+- **Delivered app, live** — every successful run deploys the released build to a preview URL with its own web UI
+  (create links, analytics, disable) and Swagger.
 - **No API keys required** — deterministic agents by default; optional Claude or OpenAI-compatible reasoning.
 
 ## Quick start

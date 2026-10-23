@@ -50,7 +50,7 @@ Prepared by **Shoeb Raza**.
 | Check | Result |
 |-------|--------|
 | `dotnet build` (warnings as errors, analyzers) | Clean |
-| Full test suite (`dotnet test AgenticSdlc.sln`) | 179 passing: orchestrator 99 unit + 7 scenario, shortener 61 unit + 12 integration |
+| Full test suite (`dotnet test AgenticSdlc.sln`) | 182 passing: orchestrator 99 unit + 7 scenario, shortener 61 unit + 15 integration |
 | Preview deployment | A scenario test deploys the released brownfield build and creates a capped link on the preview URL; verified again from the orchestrator container with the preview reachable from the host |
 | Shortener tests with each change recipe applied | 67 / 16 with click-cap; 68 / 13 with blocklist |
 | Defects caught by the orchestrator test suite | Timeout not enforced on non-cooperative agents; double plan-version increment on amendment; lexicon missed "safer" — all fixed |

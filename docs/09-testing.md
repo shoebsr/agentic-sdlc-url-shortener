@@ -15,8 +15,8 @@ flowchart TB
 | Unit | `tests/Orchestrator.UnitTests` | 99 | ~1 s |
 | Scenario | `tests/Orchestrator.ScenarioTests` | 7 | ~35 s |
 | Unit | `tests/UrlShortener.UnitTests` | 61 | < 1 s |
-| Integration | `tests/UrlShortener.IntegrationTests` | 12 | ~3 s |
-| **Total** | | **179** | |
+| Integration | `tests/UrlShortener.IntegrationTests` | 15 | ~3 s |
+| **Total** | | **182** | |
 
 Live scenario runs (`Orchestrator.Host run <scenario>` without `--simulate`) additionally build and test the modified
 shortener inside the sandbox (~30 s).

@@ -138,12 +138,12 @@ public static class RunEndpoints
 
 public sealed record ApprovalDecision(bool Approve, string? Comment);
 
-public sealed record PreviewView(string RunId, string BaseUrl, string SwaggerUrl, int Port, DateTimeOffset StartedAt)
+public sealed record PreviewView(string RunId, string BaseUrl, string AppUrl, string SwaggerUrl, int Port, DateTimeOffset StartedAt)
 {
     public static PreviewView From(PreviewInfo preview)
     {
         ArgumentNullException.ThrowIfNull(preview);
-        return new PreviewView(preview.RunId, preview.BaseUrl.AbsoluteUri, preview.SwaggerUrl.AbsoluteUri, preview.Port, preview.StartedAt);
+        return new PreviewView(preview.RunId, preview.BaseUrl.AbsoluteUri, preview.AppUrl.AbsoluteUri, preview.SwaggerUrl.AbsoluteUri, preview.Port, preview.StartedAt);
     }
 }
 

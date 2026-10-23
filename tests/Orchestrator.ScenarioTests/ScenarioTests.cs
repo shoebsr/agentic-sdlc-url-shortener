@@ -98,6 +98,11 @@ public sealed class ScenarioTests : IDisposable
             """{"url":"https://www.schwab.com","customAlias":"preview-cap","maxClicks":1}""", System.Text.Encoding.UTF8, "application/json"));
         var body = await created.Content.ReadAsStringAsync();
         var redirect = await http.GetAsync(new Uri("preview-cap", UriKind.Relative));
+        var app = await http.GetStringAsync(new Uri("ui/", UriKind.Relative));
+        var appScript = await http.GetStringAsync(new Uri("ui/app.js", UriKind.Relative));
+
+        Assert.Contains("maxClicks", app, StringComparison.Ordinal);
+        Assert.Contains("clicks left", appScript, StringComparison.Ordinal);
 
         Assert.Equal(RunStatus.Succeeded, run.Status);
         Assert.Equal(System.Net.HttpStatusCode.Created, created.StatusCode);
