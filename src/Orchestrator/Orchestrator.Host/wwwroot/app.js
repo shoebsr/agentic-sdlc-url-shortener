@@ -3,6 +3,7 @@
 const state = { scenarios: [], runs: [], approvers: [], runId: null, run: null, source: null, reloadTimer: null, seen: new Set() };
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const human = (value) => String(value ?? "").replace(/([a-z])([A-Z])/g, "$1 $2");
 const stageOrder = ["Requirements", "Clarification", "Design", "Planning", "Implementation", "Verification", "Testing", "Documentation", "ReleaseReadiness", "Release"];
 
 async function api(path, options = {}) {
@@ -70,7 +71,7 @@ async function loadRuns() {
   $("runs").innerHTML = state.runs.map((r) => `
     <button class="run-item ${r.id === state.runId ? "active" : ""}" data-run="${esc(r.id)}" type="button">
       <span class="t">${esc(r.title)}</span>
-      <span class="s"><span class="status-pill ${esc(r.status)}">${esc(r.status)}</span>${r.pendingApprovals ? `<span>⚑ ${r.pendingApprovals}</span>` : ""}<span>${relative(r.createdAt)}</span></span>
+      <span class="s"><span class="status-pill ${esc(r.status)}">${esc(human(r.status))}</span>${r.pendingApprovals ? `<span>⚑ ${r.pendingApprovals}</span>` : ""}<span>${relative(r.createdAt)}</span></span>
       <div class="progress"><i data-width="${Math.round((r.nodesSucceeded / Math.max(1, r.nodes)) * 100)}"></i></div>
     </button>`).join("");
   document.querySelectorAll(".progress i").forEach((bar) => { bar.style.width = `${bar.dataset.width}%`; });
@@ -130,7 +131,7 @@ function renderRun(view) {
   $("runTitle").textContent = run.title;
   $("runRequirement").textContent = run.requirement;
   $("runStatus").className = `status-pill ${run.status}`;
-  $("runStatus").textContent = run.status;
+  $("runStatus").textContent = human(run.status);
   $("runPlan").textContent = `Plan v${run.planVersion} · ${run.decisions.length} decisions`;
   $("haltBtn").disabled = !view.executing;
   $("resumeBtn").disabled = run.status !== "Halted";
@@ -170,7 +171,7 @@ function renderGraph(view) {
     return `<path class="edge ${cls}" d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" marker-end="url(#arrow)"></path>`;
   })).join("");
 
-  const labels = columns.map((row, ri) => `<text class="stage-label" x="${pad}" y="${pad + ri * (h + gy) + h / 2 + 4}">${esc(nodes[row[0]].stage)}</text>`).join("");
+  const labels = columns.map((row, ri) => `<text class="stage-label" x="${pad}" y="${pad + ri * (h + gy) + h / 2 + 4}">${esc(human(nodes[row[0]].stage))}</text>`).join("");
 
   const boxes = view.order.map((id, i) => {
     const n = nodes[id], s = run.nodeStates[id] || {}, p = pos[id];
@@ -182,7 +183,7 @@ function renderGraph(view) {
       <rect width="${w}" height="${h}" rx="12"></rect>
       <rect class="bar" width="5" height="${h - 20}" x="8" y="10" rx="2.5"></rect>
       <text x="22" y="24">${esc(n.title)} ${badge}</text>
-      <text class="sub" x="22" y="42">${esc(st)}${esc(attempts)}${esc(by)}</text>
+      <text class="sub" x="22" y="42">${esc(human(st))}${esc(attempts)}${esc(by)}</text>
       <title>${esc(n.agent)}${n.fallbackAgent ? " → fallback " + esc(n.fallbackAgent) : ""}\nentry: ${esc(n.entryGates.join(", ") || "none")}\nexit: ${esc(n.exitGates.join(", ") || "none")}${s.lastError ? "\nerror: " + esc(s.lastError) : ""}</title>
     </g>`;
   }).join("");

@@ -2,70 +2,114 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b16">
   <title>Shortly</title>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="glow" aria-hidden="true"><span></span><span></span></div>
+  <div class="glow" aria-hidden="true"><span></span><span></span><span></span></div>
 
   <header class="bar">
-    <div class="brand"><span class="mark" aria-hidden="true">⌁</span><div><h1>Shortly</h1><p>Short links with analytics</p></div></div>
-    <nav class="row">
-      <a class="link" href="/swagger" target="_blank" rel="noopener">API docs</a>
-      <button class="icon" id="theme" type="button" aria-label="Toggle theme">◐</button>
+    <a class="brand" href="/ui/" aria-label="Shortly home">
+      <span class="mark" aria-hidden="true">⌁</span>
+      <span><strong>Shortly</strong><small>Short links · real analytics</small></span>
+    </a>
+    <nav class="nav">
+      <a class="nav-link" href="/swagger" target="_blank" rel="noopener">API</a>
+      <button class="icon-btn" id="theme" type="button" aria-label="Toggle light and dark theme">◐</button>
     </nav>
   </header>
 
   <main class="wrap">
-    <section class="card hero">
-      <h2>Shorten a link</h2>
-      <p class="muted">Safe by default: private-network, script and credential URLs are rejected.</p>
-      <form id="createForm" autocomplete="off">
-        <div class="field grow">
-          <label for="url">Destination URL</label>
-          <input id="url" type="url" required maxlength="2048" placeholder="https://www.example.com/a/very/long/path">
-        </div>
-        <div class="grid">
-          <div class="field">
-            <label for="alias">Custom alias <span class="muted">optional</span></label>
-            <input id="alias" maxlength="32" pattern="[A-Za-z0-9_\-]{4,32}" placeholder="my-campaign">
+    <section class="hero">
+      <h1>Make every link <span class="grad">short, safe and measurable</span>.</h1>
+      <p>Paste a long URL, share the short one, and see who clicks — without storing anyone's IP address.</p>
+      <div class="summary" id="summary">
+        <div><b id="sumLinks">0</b><span>links</span></div>
+        <div><b id="sumClicks">0</b><span>clicks</span></div>
+        <div><b id="sumActive">0</b><span>active</span></div>
+      </div>
+    </section>
+
+    <section class="card create" aria-labelledby="createTitle">
+      <h2 id="createTitle" class="sr-only">Shorten a link</h2>
+      <form id="createForm" autocomplete="off" novalidate>
+        <div class="url-row">
+          <label class="sr-only" for="url">Destination URL</label>
+          <div class="input-icon">
+            <span aria-hidden="true">🔗</span>
+            <input id="url" type="url" inputmode="url" required maxlength="2048" placeholder="Paste a long URL, e.g. https://www.example.com/…">
           </div>
-          <div class="field">
-            <label for="expires">Expires <span class="muted">optional</span></label>
-            <input id="expires" type="datetime-local">
-          </div>
+          <button class="btn primary" type="submit" id="createBtn"><span class="spinner" aria-hidden="true"></span><span class="label">Shorten</span></button>
         </div>
-        <button class="btn primary" type="submit" id="createBtn">Shorten</button>
+        <p class="hint" id="urlHint" aria-live="polite"></p>
+
+        <details class="options" id="options">
+          <summary>Options <span class="muted">custom alias, expiry</span></summary>
+          <div class="grid">
+            <div class="field">
+              <label for="alias">Custom alias</label>
+              <div class="prefix"><span id="aliasPrefix"></span><input id="alias" maxlength="32" placeholder="my-campaign" autocapitalize="off" spellcheck="false"></div>
+              <small class="muted">4–32 letters, digits, - or _</small>
+            </div>
+            <div class="field">
+              <label for="expires">Expires</label>
+              <input id="expires" type="datetime-local">
+              <small class="muted">Leave empty to keep it forever</small>
+            </div>
+          </div>
+        </details>
       </form>
-      <div id="result" class="result hidden">
-        <div>
-          <span class="muted">Your short link</span>
+
+      <div id="result" class="result hidden" role="status">
+        <div class="result-main">
+          <span class="eyebrow">Your short link is ready</span>
           <a id="resultLink" target="_blank" rel="noopener"></a>
+          <span class="muted small" id="resultTarget"></span>
         </div>
-        <div class="row">
+        <div class="result-actions">
           <button class="btn" id="copyBtn" type="button">Copy</button>
-          <a class="btn" id="openBtn" target="_blank" rel="noopener">Open</a>
+          <a class="btn" id="openBtn" target="_blank" rel="noopener">Open ↗</a>
         </div>
       </div>
     </section>
 
-    <section class="card">
-      <div class="head"><h2>My links</h2><span class="muted" id="count"></span></div>
-      <p class="muted small">Links you create in this browser are listed here. Their management keys stay in this browser only.</p>
-      <div id="links" class="links"></div>
-    </section>
-
-    <section class="card hidden" id="analytics">
-      <div class="head"><h2 id="aTitle">Analytics</h2>
-        <select id="window" aria-label="Window"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
+    <section class="card" aria-labelledby="linksTitle">
+      <div class="section-head">
+        <h2 id="linksTitle">Your links</h2>
+        <div class="search">
+          <label class="sr-only" for="filter">Filter links</label>
+          <input id="filter" type="search" placeholder="Search…">
+        </div>
       </div>
-      <div class="stats" id="stats"></div>
-      <svg id="chart" role="img" aria-label="Daily clicks"></svg>
-      <h3>Top referrers</h3>
-      <ol id="referrers" class="referrers"></ol>
+      <div id="links" class="links" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <p class="footnote">Links created in this browser are listed here. Their management keys never leave this browser.</p>
     </section>
   </main>
+
+  <dialog id="analytics" class="sheet" aria-labelledby="aTitle">
+    <div class="sheet-head">
+      <div>
+        <span class="eyebrow">Analytics</span>
+        <h2 id="aTitle"></h2>
+        <a id="aTarget" class="muted small" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="sheet-tools">
+        <label class="sr-only" for="window">Time window</label>
+        <select id="window"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
+        <button class="icon-btn" id="closeSheet" type="button" aria-label="Close analytics">✕</button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="chart-card">
+      <svg id="chart" role="img" aria-label="Clicks per day"></svg>
+    </div>
+    <h3>Top referrers</h3>
+    <ul id="referrers" class="referrers"></ul>
+  </dialog>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <script src="app.js"></script>
