@@ -87,6 +87,25 @@ public sealed class ScenarioTests : IDisposable
     }
 
     [Fact]
+    public async Task Released_build_is_deployed_to_a_live_preview_that_serves_the_new_feature()
+    {
+        var run = await _fixture.DriveAsync("brownfield-click-cap", preview: true);
+        var preview = run.FindArtifact(ArtifactKeys.ReleasePreview)!.Content;
+        var baseUrl = new Uri(System.Text.RegularExpressions.Regex.Match(preview, @"Base URL \(short links\) \| (\S+) \|").Groups[1].Value);
+
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = baseUrl };
+        var created = await http.PostAsync(new Uri("api/v1/links", UriKind.Relative), new StringContent(
+            """{"url":"https://www.schwab.com","customAlias":"preview-cap","maxClicks":1}""", System.Text.Encoding.UTF8, "application/json"));
+        var body = await created.Content.ReadAsStringAsync();
+        var redirect = await http.GetAsync(new Uri("preview-cap", UriKind.Relative));
+
+        Assert.Equal(RunStatus.Succeeded, run.Status);
+        Assert.Equal(System.Net.HttpStatusCode.Created, created.StatusCode);
+        Assert.Contains("\"maxClicks\":1", body, StringComparison.Ordinal);
+        Assert.Equal(System.Net.HttpStatusCode.Found, redirect.StatusCode);
+    }
+
+    [Fact]
     public async Task Initiator_cannot_approve_their_own_run()
     {
         var run = await _fixture.DriveAsync("brownfield-click-cap", approver: "product-owner");

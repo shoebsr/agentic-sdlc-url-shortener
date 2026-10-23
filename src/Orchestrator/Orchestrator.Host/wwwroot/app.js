@@ -135,6 +135,7 @@ function renderRun(view) {
   $("haltBtn").disabled = !view.executing;
   $("resumeBtn").disabled = run.status !== "Halted";
   $("amendBtn").disabled = run.status === "Succeeded";
+  renderPreview(run);
   renderGraph(view);
   renderActions(run);
   renderArtifacts(view.artifacts);
@@ -149,25 +150,27 @@ function renderGraph(view) {
   const columns = [];
   view.order.forEach((id) => { (columns[depth[id]] ||= []).push(id); });
 
-  const w = 178, h = 62, gx = 64, gy = 20, pad = 24, top = 30;
+  const w = 196, h = 54, gx = 22, gy = 30, label = 128, pad = 16;
   const pos = {};
-  const tallest = Math.max(...columns.map((c) => c.length));
-  columns.forEach((column, ci) => {
-    const offset = ((tallest - column.length) * (h + gy)) / 2;
-    column.forEach((id, ri) => { pos[id] = { x: pad + ci * (w + gx), y: top + offset + ri * (h + gy) }; });
+  const widest = Math.max(...columns.map((c) => c.length));
+  const lane = widest * w + (widest - 1) * gx;
+  columns.forEach((row, ri) => {
+    const rowWidth = row.length * w + (row.length - 1) * gx;
+    const start = label + pad + (lane - rowWidth) / 2;
+    row.forEach((id, ci) => { pos[id] = { x: start + ci * (w + gx), y: pad + ri * (h + gy) }; });
   });
-  const width = pad * 2 + columns.length * w + (columns.length - 1) * gx;
-  const height = top + tallest * (h + gy) + pad;
+  const width = label + pad * 2 + lane;
+  const height = pad * 2 + columns.length * h + (columns.length - 1) * gy;
   const status = (id) => (run.nodeStates[id] || {}).status || "Pending";
 
   const edges = run.nodes.flatMap((n) => n.dependsOn.map((d) => {
     const a = pos[d], b = pos[n.id];
-    const x1 = a.x + w, y1 = a.y + h / 2, x2 = b.x, y2 = b.y + h / 2, mx = (x1 + x2) / 2;
+    const x1 = a.x + w / 2, y1 = a.y + h, x2 = b.x + w / 2, y2 = b.y, my = (y1 + y2) / 2;
     const cls = status(d) === "Succeeded" && status(n.id) === "Running" ? "live" : status(d) === "Succeeded" && status(n.id) !== "Pending" ? "done" : "";
-    return `<path class="edge ${cls}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" marker-end="url(#arrow)"></path>`;
+    return `<path class="edge ${cls}" d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" marker-end="url(#arrow)"></path>`;
   })).join("");
 
-  const labels = columns.map((column, ci) => `<text class="stage-label" x="${pad + ci * (w + gx)}" y="16">${esc(nodes[column[0]].stage)}</text>`).join("");
+  const labels = columns.map((row, ri) => `<text class="stage-label" x="${pad}" y="${pad + ri * (h + gy) + h / 2 + 4}">${esc(nodes[row[0]].stage)}</text>`).join("");
 
   const boxes = view.order.map((id, i) => {
     const n = nodes[id], s = run.nodeStates[id] || {}, p = pos[id];
@@ -186,12 +189,38 @@ function renderGraph(view) {
 
   const svg = $("graph");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.setAttribute("width", width);
-  svg.setAttribute("height", height);
+  svg.style.maxWidth = `${width}px`;
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
   svg.innerHTML = `<defs>
       <linearGradient id="flow" x1="0" x2="1"><stop offset="0" stop-color="#7c5cff"></stop><stop offset="1" stop-color="#22d3ee"></stop></linearGradient>
       <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7c86b5"></path></marker>
     </defs>${labels}${edges}${boxes}`;
+}
+
+async function renderPreview(run) {
+  const banner = $("previewBanner");
+  const done = (run.nodeStates.preview || {}).status === "Succeeded";
+  if (!done) { banner.classList.add("hidden"); return; }
+  try {
+    const preview = await api(`/api/runs/${encodeURIComponent(run.id)}/preview`);
+    $("previewLink").href = preview.swaggerUrl;
+    $("previewLink").textContent = preview.swaggerUrl;
+    $("previewBase").textContent = `Short links are served from ${preview.baseUrl} · isolated SQLite database`;
+    $("previewState").textContent = "Live";
+    $("previewState").className = "chip live-chip";
+    $("previewStop").disabled = false;
+    $("previewLink").classList.remove("dead");
+  } catch {
+    $("previewLink").removeAttribute("href");
+    $("previewLink").textContent = "Preview stopped";
+    $("previewLink").classList.add("dead");
+    $("previewBase").textContent = "Re-run the scenario to deploy a new preview.";
+    $("previewState").textContent = "Stopped";
+    $("previewState").className = "chip ghost";
+    $("previewStop").disabled = true;
+  }
+  banner.classList.remove("hidden");
 }
 
 function renderActions(run) {
@@ -366,6 +395,10 @@ $("haltBtn").addEventListener("click", async () => {
 });
 $("resumeBtn").addEventListener("click", async () => {
   try { await api(`/api/runs/${encodeURIComponent(state.runId)}/resume`, { method: "POST" }); toast("Run resumed", "ok"); } catch (e) { toast(e.message, "bad"); }
+});
+$("previewStop").addEventListener("click", async () => {
+  try { await api(`/api/runs/${encodeURIComponent(state.runId)}/preview`, { method: "DELETE" }); toast("Preview stopped", "ok"); } catch (e) { toast(e.message, "bad"); }
+  loadRun();
 });
 $("amendBtn").addEventListener("click", () => {
   $("amendText").value = state.run ? state.run.run.requirement : "";

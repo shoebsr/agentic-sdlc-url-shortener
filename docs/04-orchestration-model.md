@@ -130,6 +130,7 @@ OpenTelemetry collection.
 | `technical-writer` | Documentation | `docs.feature`, `CHANGELOG.md` in the sandbox |
 | `release-manager` | Release readiness | `release.checklist`, `release.notes` |
 | `release-publisher` | Release | `release.package` (tag + patch) |
+| `preview-deployer` | Release | `release.preview` — runs the released build from the sandbox on a free port (5100–5109) with its own SQLite database, waits for `/health/ready`, returns the URL; compensation stops it |
 
 ### Deterministic and LLM modes
 

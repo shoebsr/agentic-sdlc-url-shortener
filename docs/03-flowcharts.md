@@ -40,8 +40,9 @@ flowchart LR
     I --> L[Integration tests]
     I --> M[Security review]
     K & L & M & J --> N[Release readiness<br/>go / no-go ⚑]
-    N --> O[Release package]
-    O --> P([Tagged release +<br/>reviewable patch])
+    N --> O[Release package<br/>tag + patch]
+    O --> Q[Preview deployment<br/>health-checked]
+    Q --> P([Live preview URL<br/>for the human])
 ```
 
 ⚑ = human approval checkpoint. Implementation is approved when it is brownfield or when a policy escalates it.
@@ -50,9 +51,9 @@ flowchart LR
 
 | Scenario | Nodes | Parallel branches | Approvals |
 |----------|-------|-------------------|-----------|
-| Greenfield | 11 | build ‖ docs, then unit ‖ integration ‖ security | design, implementation (policy-escalated: change budget, protected paths), go/no-go |
-| Brownfield | 12 (adds impact analysis) | same | design, implementation (change control + migration), go/no-go |
-| Ambiguous | 12 + clarification inserted at run time | same | clarification answers, design, implementation, go/no-go |
+| Greenfield | 12 | build ‖ docs, then unit ‖ integration ‖ security | design, implementation (policy-escalated: change budget, protected paths), go/no-go |
+| Brownfield | 13 (adds impact analysis) | same | design, implementation (change control + migration), go/no-go |
+| Ambiguous | 13 + clarification inserted at run time | same | clarification answers, design, implementation, go/no-go |
 
 ## 3. Node lifecycle
 

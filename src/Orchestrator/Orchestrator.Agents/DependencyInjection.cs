@@ -5,6 +5,7 @@ using Orchestrator.Agents.Delivery;
 using Orchestrator.Agents.Design;
 using Orchestrator.Agents.Implementation;
 using Orchestrator.Agents.Llm;
+using Orchestrator.Agents.Preview;
 using Orchestrator.Agents.Requirements;
 using Orchestrator.Agents.Tools;
 using Orchestrator.Agents.Verification;
@@ -21,6 +22,9 @@ public static class DependencyInjection
         services.AddOptions<WorkspaceOptions>().BindConfiguration(WorkspaceOptions.SectionName);
         services.AddOptions<LlmOptions>().BindConfiguration(LlmOptions.SectionName).ValidateDataAnnotations();
 
+        services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
+        services.AddHttpClient(nameof(PreviewEnvironments), http => http.Timeout = TimeSpan.FromSeconds(5));
+        services.AddSingleton<PreviewEnvironments>();
         services.AddSingleton<IToolbox, ProcessToolbox>();
         services.AddSingleton<IWorkspaceProvider, GitWorkspaceProvider>();
         services.AddSingleton<ScenarioCatalog>();
@@ -55,6 +59,7 @@ public static class DependencyInjection
         services.AddSingleton<IAgent, TechnicalWriterAgent>();
         services.AddSingleton<IAgent, ReleaseManagerAgent>();
         services.AddSingleton<IAgent, ReleasePublisherAgent>();
+        services.AddSingleton<IAgent, PreviewDeployerAgent>();
         services.AddSingleton<IAgentRegistry, AgentRegistry>();
         return services;
     }

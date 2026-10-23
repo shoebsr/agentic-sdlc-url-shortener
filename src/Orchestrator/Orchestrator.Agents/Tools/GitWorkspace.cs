@@ -219,7 +219,7 @@ public sealed class GitWorkspace : IWorkspace, IDisposable
             Copy(Path.Combine(source, entry), Path.Combine(Root, entry));
         }
 
-        await File.WriteAllTextAsync(Path.Combine(Root, ".gitignore"), "bin/\nobj/\nTestResults/\n.vs/\n", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(Root, ".gitignore"), "bin/\nobj/\nTestResults/\n.vs/\n.preview/\n", cancellationToken);
         await GitAsync(cancellationToken, "init", "--quiet", "--initial-branch=main");
         await GitAsync(cancellationToken, "config", "user.name", "sdlc-orchestrator");
         await GitAsync(cancellationToken, "config", "user.email", "orchestrator@sdlc.local");

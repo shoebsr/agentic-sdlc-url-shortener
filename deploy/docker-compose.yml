@@ -109,6 +109,20 @@ services:
       <<: *http-healthcheck
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/gateway/health"]
 
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.orchestrator
+    ports:
+      - "5090:8080"
+      - "5100-5109:5100-5109"
+    volumes:
+      - orchestrator-data:/data
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+
 volumes:
   sqlserver-data:
   redis-data:
+  orchestrator-data:

@@ -44,4 +44,5 @@ public static class ArtifactKeys
     public const string ReleaseChecklist = "release.checklist";
     public const string ReleaseNotes = "release.notes";
     public const string ReleasePackage = "release.package";
+    public const string ReleasePreview = "release.preview";
 }

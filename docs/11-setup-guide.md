@@ -2,12 +2,15 @@
 
 How to run the system on a new machine and test it by hand. Project owner: **Shoeb Raza**.
 
-| | Option A: Docker (shortener stack) | Option B: local |
+| | Option A: Docker (everything) | Option B: local |
 |---|---|---|
 | Installs needed | Docker Desktop | .NET 10 SDK, Git, SQL Server (any edition) for the shortener API |
 | Shortener | Gateway on http://localhost:8080 | API on http://localhost:5080 |
-| Orchestrator dashboard | Run locally (§4) | http://localhost:5090 |
-| Use it for | Microservices demo (gateway, replicas, Redis, workers) | Development, orchestrator demo |
+| Orchestrator dashboard | http://localhost:5090 (container) | http://localhost:5090 |
+| Preview of a released build | http://localhost:5100–5109 | http://localhost:5100–5109 |
+| Use it for | Full demo with one command | Development and debugging |
+
+Option A and Option B both use port 5090 for the dashboard, so run one at a time.
 
 ## 1. Prerequisites
 
@@ -36,7 +39,7 @@ Tests need no database, Redis or network: they use SQLite in-memory and in-proce
 | `bin/`, `obj/` | Build output | `dotnet build` |
 | LLM API keys | Never stored anywhere in the repository | Environment variable, only if LLM mode is wanted (§6) |
 
-## 3. Option A — Docker (shortener microservices)
+## 3. Option A — Docker (everything)
 
 ```powershell
 copy deploy\.env.example deploy\.env      # then edit both values
@@ -44,13 +47,20 @@ docker compose -f deploy/docker-compose.yml up -d --build
 docker compose -f deploy/docker-compose.yml ps
 ```
 
-Expected: `sqlserver`, `redis`, `links-api` healthy; 2× `redirect` healthy; 2× `analytics-worker` running; `gateway` healthy.
+Expected: `sqlserver`, `redis`, `links-api` healthy; 2× `redirect` healthy; 2× `analytics-worker` running;
+`gateway` healthy; `orchestrator` healthy.
 
 | URL | What |
 |-----|------|
-| http://localhost:8080/swagger | API documentation through the gateway |
+| http://localhost:5090 | Orchestrator dashboard |
+| http://localhost:8080/swagger | Shortener API documentation through the gateway |
 | http://localhost:8080/api/v1/links | Create / manage links |
 | http://localhost:8080/{code} | Redirect |
+| http://localhost:5100–5109 | Preview environments started by successful runs |
+
+Only the orchestrator: `docker compose -f deploy/docker-compose.yml up -d --build orchestrator`.
+The orchestrator image is based on the .NET SDK image because agents build and test code inside their sandboxes;
+the first live run in a fresh container restores NuGet packages and is slower.
 
 Stop with `docker compose -f deploy/docker-compose.yml stop` (data kept) or `down -v` (data removed).
 
@@ -109,8 +119,14 @@ Exit code is `0` when the run succeeds.
 4. At **Implementation** an approval with risk **High** appears; the evidence lists the migration files that
    triggered the protected-path policy. Approve.
 5. Verification starts; unit tests, integration tests and security review run in parallel, docs alongside.
-6. Approve the go/no-go. The run ends **Succeeded**.
-7. Open artifacts: `impact.analysis`, `design.doc`, `plan.tasks`, `tests.integration`, `release.package` (coloured diff).
+6. Approve the go/no-go. The release package is created, then the **Preview deployment** stage starts the
+   released build (about 30–60 s, it compiles the sandbox).
+7. The run ends **Succeeded** and a green **🚀 preview banner** appears with a link such as
+   `http://localhost:5100/swagger`. This is the software the agents just delivered: create a link with
+   `"maxClicks": 2`, open it twice, and the third visit returns **410 Gone**.
+8. **Stop preview** shuts it down; previews also stop on rollback and when the orchestrator stops.
+9. Open artifacts: `impact.analysis`, `design.doc`, `plan.tasks`, `tests.integration`, `release.package`
+   (coloured diff), `release.preview`.
 
 ### 5.2 Governance
 On any pending approval, choose `product-owner` (the initiator) → Approve: refused by segregation of duties.

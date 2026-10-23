@@ -18,6 +18,7 @@ public static class AgentNames
     public const string TechnicalWriter = "technical-writer";
     public const string ReleaseManager = "release-manager";
     public const string ReleasePublisher = "release-publisher";
+    public const string PreviewDeployer = "preview-deployer";
 }
 
 internal static class Produce

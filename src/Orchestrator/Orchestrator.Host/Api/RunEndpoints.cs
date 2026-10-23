@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Orchestrator.Agents.Preview;
 using Orchestrator.Agents.Workflows;
 using Orchestrator.Core.Abstractions;
 using Orchestrator.Core.Engine;
@@ -56,6 +57,17 @@ public static class RunEndpoints
 
         api.MapPost("/runs/{id}/resume", async (string id, RunCoordinator coordinator, CancellationToken ct) =>
             ToResult(await coordinator.ResumeAsync(id, ct)));
+
+        api.MapGet("/runs/{id}/preview", (string id, PreviewEnvironments previews) =>
+            previews.Find(id) is { } preview ? Results.Ok(PreviewView.From(preview)) : Results.NotFound());
+
+        api.MapDelete("/runs/{id}/preview", async (string id, PreviewEnvironments previews) =>
+        {
+            await previews.StopAsync(id);
+            return Results.NoContent();
+        });
+
+        api.MapGet("/previews", (PreviewEnvironments previews) => TypedResults.Ok(previews.Active.Select(PreviewView.From)));
 
         api.MapGet("/control/kill-switch", (IKillSwitch killSwitch) => TypedResults.Ok(new { engaged = killSwitch.IsEngaged, reason = killSwitch.Reason }));
 
@@ -125,6 +137,15 @@ public static class RunEndpoints
 }
 
 public sealed record ApprovalDecision(bool Approve, string? Comment);
+
+public sealed record PreviewView(string RunId, string BaseUrl, string SwaggerUrl, int Port, DateTimeOffset StartedAt)
+{
+    public static PreviewView From(PreviewInfo preview)
+    {
+        ArgumentNullException.ThrowIfNull(preview);
+        return new PreviewView(preview.RunId, preview.BaseUrl.AbsoluteUri, preview.SwaggerUrl.AbsoluteUri, preview.Port, preview.StartedAt);
+    }
+}
 
 public sealed record RequirementAmendment(string Requirement, string? Reason);
 

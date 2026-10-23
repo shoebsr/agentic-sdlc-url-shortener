@@ -78,16 +78,17 @@ public class RequirementsAndTemplatesTests
     }
 
     [Theory]
-    [InlineData(ScenarioKind.Greenfield, 11)]
-    [InlineData(ScenarioKind.Brownfield, 12)]
-    [InlineData(ScenarioKind.Ambiguous, 12)]
+    [InlineData(ScenarioKind.Greenfield, 12)]
+    [InlineData(ScenarioKind.Brownfield, 13)]
+    [InlineData(ScenarioKind.Ambiguous, 13)]
     public void Workflow_templates_are_valid_dags_with_governed_checkpoints(ScenarioKind kind, int nodes)
     {
         var graph = new WorkflowGraph(WorkflowTemplates.For(kind));
 
         Assert.Equal(nodes, graph.Nodes.Count);
         Assert.Equal("requirements", graph.TopologicalOrder()[0]);
-        Assert.Equal("release", graph.TopologicalOrder()[^1]);
+        Assert.Equal("preview", graph.TopologicalOrder()[^1]);
+        Assert.Equal(["release"], graph["preview"].DependsOn);
         Assert.True(graph["design"].RequiresApproval);
         Assert.True(graph["release-readiness"].RequiresApproval);
         Assert.Equal(4, graph["release-readiness"].DependsOn.Count);

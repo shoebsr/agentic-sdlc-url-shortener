@@ -63,7 +63,7 @@ public sealed class RunFactory(ScenarioCatalog scenarios, TimeProvider clock)
 {
     private static readonly HashSet<string> OverridableSettings = new(StringComparer.Ordinal)
     {
-        RunSettings.ExecutionMode, RunSettings.Faults, RunSettings.AutoApprove, "injectSecret",
+        RunSettings.ExecutionMode, RunSettings.Faults, RunSettings.AutoApprove, "injectSecret", "preview",
     };
 
     public WorkflowRun Create(RunRequest request)

@@ -50,7 +50,8 @@ Prepared by **Shoeb Raza**.
 | Check | Result |
 |-------|--------|
 | `dotnet build` (warnings as errors, analyzers) | Clean |
-| Full test suite (`dotnet test AgenticSdlc.sln`) | 178 passing: orchestrator 99 unit + 6 scenario, shortener 61 unit + 12 integration |
+| Full test suite (`dotnet test AgenticSdlc.sln`) | 179 passing: orchestrator 99 unit + 7 scenario, shortener 61 unit + 12 integration |
+| Preview deployment | A scenario test deploys the released brownfield build and creates a capped link on the preview URL; verified again from the orchestrator container with the preview reachable from the host |
 | Shortener tests with each change recipe applied | 67 / 16 with click-cap; 68 / 13 with blocklist |
 | Defects caught by the orchestrator test suite | Timeout not enforced on non-cooperative agents; double plan-version increment on amendment; lexicon missed "safer" — all fixed |
 | Live brownfield run | Real build and tests in the sandbox, three approvals, released |
@@ -76,7 +77,7 @@ and schema changes additive; evaluators may lack API keys and infrastructure.
 
 ## 7. What I would do next
 
-1. Orchestrator container in Docker Compose; database-backed run store with per-run distributed locks.
+1. Database-backed run store with per-run distributed locks so the control plane can scale out.
 2. OIDC for dashboard and approvals; approver identity from the token.
 3. Container-isolated agent sandboxes with a package-mirror-only network.
 4. Pull-request based release (open a PR with the patch, checks and approvals attached).

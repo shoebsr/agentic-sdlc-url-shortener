@@ -13,10 +13,10 @@ flowchart TB
 | Level | Project | Tests | Speed |
 |-------|---------|-------|-------|
 | Unit | `tests/Orchestrator.UnitTests` | 99 | ~1 s |
-| Scenario | `tests/Orchestrator.ScenarioTests` | 6 | ~15 s |
+| Scenario | `tests/Orchestrator.ScenarioTests` | 7 | ~35 s |
 | Unit | `tests/UrlShortener.UnitTests` | 61 | < 1 s |
 | Integration | `tests/UrlShortener.IntegrationTests` | 12 | ~3 s |
-| **Total** | | **178** | |
+| **Total** | | **179** | |
 
 Live scenario runs (`Orchestrator.Host run <scenario>` without `--simulate`) additionally build and test the modified
 shortener inside the sandbox (~30 s).
@@ -63,7 +63,7 @@ Scenario tests drive the real composition root (`AddOrchestrator`) with simulate
 the business outcome of each scenario: brownfield released with a High-risk migration approval and `MaxClicks` in
 the release patch; ambiguous re-planned to v2 and scoped to the blocklist; ambiguous run left unanswered stays in
 `AwaitingInput` with no design produced; greenfield recovers through fallback and retry; the committed secret is
-denied and the sandbox no longer contains the change; the initiator cannot approve their own run.
+denied and the sandbox no longer contains the change; the initiator cannot approve their own run; and the released brownfield build is deployed to a live preview where a capped link is created and redirects.
 
 ### Defects found by these tests
 

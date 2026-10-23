@@ -80,11 +80,11 @@ body {
 
 .top-actions { display: flex; gap: 8px; align-items: center; }
 
-.layout { position: relative; z-index: 1; display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
-.sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 96px; height: calc(100vh - 112px); }
+.layout { position: relative; z-index: 1; display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; align-items: start; }
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
 .content { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .panel { padding: 16px; }
-.panel.grow { flex: 1; overflow: auto; }
+.panel.grow { max-height: 70vh; min-height: 260px; overflow: auto; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .panel-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .muted { color: var(--muted); font-size: 12px; }
@@ -118,7 +118,9 @@ button { font: inherit; cursor: pointer; }
 .scenario { padding: 12px; border-radius: 14px; border: 1px solid var(--stroke); background: var(--glass-strong); transition: transform 0.2s, border-color 0.2s; }
 .scenario:hover { transform: translateY(-2px); border-color: var(--accent); }
 .scenario h3 { margin: 0 0 4px; font-size: 14px; }
-.scenario p { margin: 0 0 10px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.scenario p { margin: 0 0 10px; font-size: 12px; color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.scenario:hover p { -webkit-line-clamp: unset; line-clamp: unset; }
+.scenario .btn { padding: 6px 14px; }
 .kind { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
 .kind.Greenfield { background: rgba(52, 211, 153, 0.16); color: var(--ok); }
 .kind.Brownfield { background: rgba(96, 165, 250, 0.16); color: var(--info); }
@@ -155,7 +157,18 @@ button { font: inherit; cursor: pointer; }
 
 .graph-card { padding: 16px; }
 .graph-scroll { overflow-x: auto; }
-#graph { display: block; min-width: 100%; }
+#graph { display: block; width: 100%; height: auto; margin: 0 auto; }
+
+.preview-banner { padding: 16px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: linear-gradient(120deg, rgba(52, 211, 153, 0.16), rgba(34, 211, 238, 0.12)), var(--glass);
+  border-color: rgba(52, 211, 153, 0.45); animation: rise 0.4s ease both; }
+.preview-banner .rocket { font-size: 30px; animation: launch 2.6s ease-in-out infinite; }
+.preview-text { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+.preview-text a { font-size: 18px; font-weight: 700; color: var(--ok); text-decoration: none; word-break: break-all; }
+.preview-text a:hover { text-decoration: underline; }
+.preview-text a.dead { color: var(--muted); pointer-events: none; }
+.live-chip { background: rgba(52, 211, 153, 0.18); color: var(--ok); border-color: rgba(52, 211, 153, 0.5); margin-left: 6px; font-size: 10px; padding: 2px 8px; }
+@keyframes launch { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-5px) rotate(-6deg); } }
 .legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-left: 8px; }
 .dot.pending { background: #475070; } .dot.running { background: var(--info); } .dot.awaiting { background: var(--warn); }
@@ -182,7 +195,7 @@ button { font: inherit; cursor: pointer; }
 @keyframes glow-warn { 50% { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7)); } }
 .node { cursor: default; animation: pop 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
 @keyframes pop { from { opacity: 0; transform: scale(0.85); } }
-.stage-label { fill: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.stage-label { fill: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 
 .card { padding: 14px; border-radius: 14px; border: 1px solid var(--stroke); background: var(--glass-strong); margin-bottom: 10px; animation: rise 0.35s ease both; }
 .card h4 { margin: 0 0 6px; font-size: 14px; display: flex; gap: 8px; align-items: center; }

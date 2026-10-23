@@ -148,6 +148,18 @@ public static class WorkflowTemplates
                 Retry = RetryPolicy.None,
                 Risk = RiskLevel.High,
             },
+            new()
+            {
+                Id = "preview",
+                Title = "Preview deployment",
+                Stage = Stage.Release,
+                Agent = AgentNames.PreviewDeployer,
+                DependsOn = ["release"],
+                ExitGates = [Artifact(ArtifactKeys.ReleasePreview)],
+                Compensable = true,
+                Retry = RetryPolicy.None,
+                Timeout = TimeSpan.FromMinutes(5),
+            },
         ]);
 
         return nodes;

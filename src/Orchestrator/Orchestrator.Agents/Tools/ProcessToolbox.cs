@@ -32,7 +32,7 @@ public sealed class ProcessToolbox(IOptions<WorkspaceOptions> options) : IToolbo
         return await ProcessRunner.RunAsync(tool, arguments, directory, timeout, Sanitize, cancellationToken);
     }
 
-    private static void Sanitize(ProcessStartInfo start)
+    internal static void Sanitize(ProcessStartInfo start)
     {
         foreach (var key in start.Environment.Keys.ToList())
         {

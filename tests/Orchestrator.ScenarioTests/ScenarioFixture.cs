@@ -46,10 +46,11 @@ public sealed class ScenarioFixture : IAsyncDisposable
 
     public string WorkspaceOf(string runId) => Path.Combine(_dataRoot, "workspaces", runId);
 
-    public async Task<WorkflowRun> DriveAsync(string scenarioId, string approver = "eng-lead", bool acceptDefaults = true)
+    public async Task<WorkflowRun> DriveAsync(string scenarioId, string approver = "eng-lead", bool acceptDefaults = true, bool preview = false)
     {
+        var settings = new Dictionary<string, string> { ["preview"] = preview ? "true" : "false" };
         var run = _services.GetRequiredService<RunFactory>()
-            .Create(new RunRequest(scenarioId, null, null, null, null, "simulated", null, null));
+            .Create(new RunRequest(scenarioId, null, null, null, null, "simulated", null, settings));
         await Coordinator.StartAsync(run, CancellationToken.None);
 
         for (var step = 0; step < 20; step++)
